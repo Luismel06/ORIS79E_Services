@@ -1,0 +1,155 @@
+import styled from "styled-components";
+import { motion } from "framer-motion";
+
+const Container = styled.section`
+  width: 100%;
+  min-height: 100vh;
+  background-color: ${({ theme }) => theme.background};
+  color: ${({ theme }) => theme.text};
+  padding: calc(72px + 2rem) 2rem 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+`;
+
+
+const Title = styled.h2`
+  color: ${({ theme }) => theme.accent};
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+`;
+
+const InfoContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+  max-width: 1100px;
+  width: 100%;
+`;
+
+const Card = styled(motion.div)`
+  flex: 1 1 300px;
+  background-color: ${({ theme }) => theme.cardBackground};
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  border: 1px solid ${({ theme }) => theme.border};
+
+  h3 {
+    color: ${({ theme }) => theme.accent};
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    font-size: 1rem;
+  }
+
+  a {
+    color: ${({ theme }) => theme.accent};
+    text-decoration: none;
+  }
+`;
+
+const Form = styled(motion.form)`
+  width: 100%;
+  max-width: 600px;
+  background-color: ${({ theme }) => theme.cardBackground};
+  border-radius: 15px;
+  padding: 2rem;
+  border: 1px solid ${({ theme }) => theme.border};
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const Input = styled.input`
+  width: 100%;
+  padding: 0.8rem;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.border};
+  background-color: ${({ theme }) => theme.background};
+  color: ${({ theme }) => theme.text};
+`;
+
+const TextArea = styled.textarea`
+  width: 100%;
+  padding: 0.8rem;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.border};
+  background-color: ${({ theme }) => theme.background};
+  color: ${({ theme }) => theme.text};
+  resize: none;
+`;
+
+const Button = styled.button`
+  background-color: ${({ theme }) => theme.accent};
+  color: #fff;
+  border: none;
+  padding: 0.9rem 1.6rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.3s;
+  &:hover {
+    opacity: 0.9;
+  }
+`;
+
+const MapContainer = styled.div`
+  width: 100%;
+  max-width: 900px;
+  height: 350px;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+`;
+
+export default function Contacto() {
+  return (
+    <Container>
+      <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}>
+        <Title>Contáctanos</Title>
+        <p>Estamos aquí para ayudarte. ¡Ponte en contacto con nosotros!</p>
+      </motion.div>
+
+      <InfoContainer>
+        <Card whileHover={{ scale: 1.03 }}>
+          <h3>Teléfono</h3>
+          <p>
+            <a href="tel:+18495776011">+1 (849) 577-6011</a>
+          </p>
+        </Card>
+
+        <Card whileHover={{ scale: 1.03 }}>
+          <h3>Correo electrónico</h3>
+          <p>
+            <a href="mailto:Oriseservice394@gmail.com">
+              Oriseservice394@gmail.com
+            </a>
+          </p>
+        </Card>
+
+        <Card whileHover={{ scale: 1.03 }}>
+          <h3>Dirección</h3>
+          <p>Calle Marginado Las Américas, Gonzales 2, 3D</p>
+        </Card>
+      </InfoContainer>
+      <MapContainer>
+        <iframe
+          title="Mapa de ORIS79E Services"
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3762.612384587515!2d-69.854545!3d18.489876!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8eaf899b7f49e3e1%3A0x86c89a431aa45b74!2sLas%20Am%C3%A9ricas%2C%20Santo%20Domingo%20Este!5e0!3m2!1ses!2sdo!4v1697305600000!5m2!1ses!2sdo"
+          width="100%"
+          height="100%"
+          style={{ border: 0 }}
+          allowFullScreen=""
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+        ></iframe>
+      </MapContainer>
+    </Container>
+  );
+}
