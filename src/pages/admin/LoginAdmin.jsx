@@ -113,17 +113,20 @@ export default function LoginAdmin() {
 
   // === Iniciar sesión con Google ===
   const handleGoogleLogin = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin + "/admin/login",
-      },
-    });
+  const redirectTo = import.meta.env.VITE_REDIRECT_URL;
 
-    if (error) {
-      Swal.fire("Error", "Hubo un problema al iniciar sesión con Google.", "error");
-    }
-  };
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: redirectTo,
+    },
+  });
+
+  if (error) {
+    Swal.fire("Error", "Hubo un problema al iniciar sesión con Google.", "error");
+  }
+};
+
 
   // === Validar usuario al iniciar sesión ===
   useEffect(() => {
