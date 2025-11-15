@@ -904,32 +904,61 @@ const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
                 </TicketHeaderLeft>
 
                 <TicketHeaderRight>
-                  <EstadoBadge
-                    $estado={obtenerEstadoTicket(ticketSeleccionado)}
-                  >
-                    ● {obtenerEstadoTicket(ticketSeleccionado)}
-                  </EstadoBadge>
+  <EstadoBadge
+    $estado={obtenerEstadoTicket(ticketSeleccionado)}
+  >
+    ● {obtenerEstadoTicket(ticketSeleccionado)}
+  </EstadoBadge>
 
-                  <HeaderActions>
-                    {ticketSeleccionado.telefono && (
-                      <a href={`tel:${ticketSeleccionado.telefono}`}>
-                        <Phone size={14} />
-                        Llamar
-                      </a>
-                    )}
+  <HeaderActions>
+    {ticketSeleccionado.telefono && (
+      <a href={`tel:${ticketSeleccionado.telefono}`}>
+        <Phone size={14} />
+        Llamar
+      </a>
+    )}
 
-                    {ticketSeleccionado.chat_link && (
-                      <a
-                        href={ticketSeleccionado.chat_link}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <MessageSquare size={14} />
-                        Chat
-                      </a>
-                    )}
-                  </HeaderActions>
-                </TicketHeaderRight>
+    {ticketSeleccionado.chat_link && (
+      <a
+        href={ticketSeleccionado.chat_link}
+        target="_blank"
+        rel="noreferrer"
+      >
+        <MessageSquare size={14} />
+        Chat
+      </a>
+    )}
+  </HeaderActions>
+
+  <button
+    style={{
+      marginTop: "10px",
+      background: "#00bcd4",
+      color: "white",
+      border: "none",
+      padding: "7px 12px",
+      borderRadius: "6px",
+      cursor: "pointer",
+      fontWeight: "600",
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
+    }}
+    onClick={() =>
+      asignarTecnico(
+        ticketSeleccionado.id,
+        ticketSeleccionado.numero_caso,
+        ticketSeleccionado.cliente,
+        ticketSeleccionado.email,
+        ticketSeleccionado.servicio_nombre
+      )
+    }
+  >
+    🔄 Reasignar técnico
+  </button>
+</TicketHeaderRight>
+
               </TicketHeader>
 
               <DetailContent>
