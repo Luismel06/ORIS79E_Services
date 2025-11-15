@@ -113,12 +113,10 @@ export default function LoginAdmin() {
 
   // === Iniciar sesión con Google ===
   const handleGoogleLogin = async () => {
-  const redirectTo = import.meta.env.VITE_REDIRECT_URL;
-
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: redirectTo,
+      redirectTo: window.location.origin + "/admin/login",
     },
   });
 
@@ -126,6 +124,7 @@ export default function LoginAdmin() {
     Swal.fire("Error", "Hubo un problema al iniciar sesión con Google.", "error");
   }
 };
+
 
 
   // === Validar usuario al iniciar sesión ===
