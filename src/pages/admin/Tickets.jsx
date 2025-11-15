@@ -568,7 +568,8 @@ export default function Tickets() {
   }
 
   // === 6. Asignar técnico desde solicitudes ===
- const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
+ // === 6. Asignar técnico desde solicitudes ===
+const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
   const tecnicosHTML = tecnicos
     .map((t) => `<option value="${t.email}">${t.nombre} (${t.email})</option>`)
     .join("");
@@ -601,22 +602,22 @@ export default function Tickets() {
         tecnico: document.getElementById("tecnico").value,
         fecha: document.getElementById("fecha").value,
         hora: document.getElementById("hora").value,
-        tipo: document.getElementById("tipo").value,
+        tarea: document.getElementById("tipo").value, // ⬅️ AHORA SE LLAMA CORRECTO
       };
     },
   });
 
   if (!formValues) return;
 
-  const { tecnico, fecha, hora, tipo } = formValues;
+  const { tecnico, fecha, hora, tarea } = formValues;
 
-  // OBJETO DEL TECNICO
+  // === OBJETO DEL TÉCNICO ===
   const tecnicoObj = tecnicos.find((t) => t.email === tecnico);
   const tecnicoAsignado = tecnicoObj
     ? `${tecnicoObj.nombre} (${tecnicoObj.email})`
     : tecnico;
 
-  // 1) Actualizar la solicitud
+  // === 1) ACTUALIZAR BD ===
   await supabase
     .from("solicitudes")
     .update({
@@ -624,36 +625,41 @@ export default function Tickets() {
       estado: "Agendado",
       fecha_agendada: fecha,
       hora_agendada: hora,
-      tipo_tarea: tipo,
+      tipo_tarea: tarea,
     })
     .eq("id", id);
 
-  // 2) Registrar en historial
+  // === 2) HISTORIAL ===
   await supabase.from("historial_tickets").insert([
     {
       ticket_id: id,
       usuario: "admin",
       rol: "admin",
       accion: "asignacion_tecnico",
-      descripcion: `Se asignó el técnico ${tecnicoAsignado} para la tarea "${tipo}" el ${fecha} a las ${hora}.`,
+      descripcion: `Se asignó el técnico ${tecnicoAsignado} para la tarea "${tarea}" el ${fecha} a las ${hora}.`,
     },
   ]);
 
-  // 3) Enviar correo al cliente (si tienes EmailJS)
+  // === 3) ENVIAR CORREO ===
   try {
     await emailjs.send(
       EMAILJS_SERVICE_ID,
       EMAILJS_TEMPLATE_ASIGNACION_ID,
       {
-        cliente,
+        email: email,                 // ⬅️ CORRECTO (plantilla usa {{email}})
+        cliente: cliente,
         tecnico: tecnicoObj?.nombre ?? tecnico,
-        servicio,
-        fecha,
-        hora,
-        to_email: email,
+        servicio: servicio,
+        fecha: fecha,
+        hora: hora,
+        tarea: tarea,                // ⬅️ CORRECTO (plantilla usa {{tarea}})
+        name: "ORIS79E Services",
       },
       EMAILJS_PUBLIC_KEY
     );
+
+    console.log("Correo enviado correctamente ✔");
+
   } catch (err) {
     console.error("EmailJS error:", err);
   }
@@ -661,10 +667,12 @@ export default function Tickets() {
   Swal.fire({
     icon: "success",
     title: "Técnico asignado correctamente",
+    text: "El cliente ha sido notificado.",
   });
 
   cargarTodo();
 };
+
 
 
   // =======================
