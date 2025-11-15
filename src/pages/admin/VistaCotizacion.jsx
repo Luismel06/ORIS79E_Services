@@ -155,7 +155,7 @@ export default function VistaCotizacion() {
 
     const { data: productosData } = await supabase
       .from("productos")
-      .select("id, nombre, precio");
+      .select("id, nombre, precio, cantidad");
 
     const detalleConProducto = det?.map((d) => {
       const prod = productosData.find((p) => p.id === d.producto_id);
@@ -165,8 +165,48 @@ export default function VistaCotizacion() {
     setDetalle(detalleConProducto || []);
   }
 
-  // -------------- CAMBIO DE ESTADO -----------------
+  // ============================
+  // 🔥 DESCONTAR INVENTARIO
+  // ============================
+  async function descontarInventario() {
+    for (const d of detalle) {
+      const prod = d.producto;
+      if (!prod) continue;
+
+      const nuevoStock = prod.cantidad - d.cantidad;
+
+      await supabase
+        .from("productos")
+        .update({ cantidad: nuevoStock })
+        .eq("id", prod.id);
+    }
+  }
+
+  // ============================
+  //  CAMBIO DE ESTADO
+  // ============================
   async function cambiarEstado(nuevoEstado) {
+    // ⚠️ Si ya está aceptada → no descontar nuevamente
+    if (nuevoEstado === "aceptada" && cotizacion.estado === "aceptada") {
+      Swal.fire("Ya aceptada", "Esta cotización ya fue aceptada anteriormente.", "info");
+      return;
+    }
+
+    // ⚠️ Validar stock antes de aceptar
+    if (nuevoEstado === "aceptada") {
+      for (const d of detalle) {
+        if (!d.producto) continue;
+        if (d.cantidad > d.producto.cantidad) {
+          return Swal.fire(
+            "Stock insuficiente",
+            `El producto "${d.producto.nombre}" solo tiene ${d.producto.cantidad} unidades disponibles.`,
+            "error"
+          );
+        }
+      }
+    }
+
+    // 1) Actualizar estado
     const { error } = await supabase
       .from("cotizaciones")
       .update({ estado: nuevoEstado })
@@ -177,10 +217,16 @@ export default function VistaCotizacion() {
       return Swal.fire("Error", "No se pudo cambiar el estado", "error");
     }
 
-    Swal.fire("Estado actualizado", "", "success");
-    fetchCotizacion(); // refrescar
+    // 2) Descontar inventario SOLO si está aceptada
+    if (nuevoEstado === "aceptada") {
+      await descontarInventario();
+      Swal.fire("Cotización aceptada", "El inventario fue actualizado.", "success");
+    } else {
+      Swal.fire("Estado actualizado", "", "success");
+    }
+
+    fetchCotizacion();
   }
-  // --------------------------------------------------
 
   if (!cotizacion) return <p style={{ padding: "2rem" }}>Cargando...</p>;
 
@@ -379,7 +425,7 @@ export default function VistaCotizacion() {
           </span>
         </InfoRow>
 
-        {/* -------------- BOTONES DE CAMBIO DE ESTADO ---------------- */}
+        {/* -------------- BOTONES -------------- */}
         <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
           <button
             onClick={() => cambiarEstado("aceptada")}
@@ -426,7 +472,7 @@ export default function VistaCotizacion() {
             🕒 Pendiente
           </button>
         </div>
-        {/* ---------------------------------------------------------------- */}
+        {/* ------------------------------------- */}
 
         <InfoRow>
           <span><Strong>Fecha:</Strong></span>

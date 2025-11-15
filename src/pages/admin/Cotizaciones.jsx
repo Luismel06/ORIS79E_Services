@@ -156,6 +156,9 @@ export default function Cotizaciones() {
     if (!error) setCotizaciones(data);
   }
 
+  // ==========================
+  // 🚨 Validación de STOCK
+  // ==========================
   function agregarProducto() {
     if (!productoSeleccionado) return;
 
@@ -166,6 +169,15 @@ export default function Cotizaciones() {
 
     const cant = Number(cantidad) || 1;
 
+    if (cant > prod.cantidad) {
+      Swal.fire(
+        "Cantidad inválida",
+        `Solo tienes ${prod.cantidad} unidades disponibles en inventario.`,
+        "warning"
+      );
+      return;
+    }
+
     setDetalle([
       ...detalle,
       {
@@ -173,6 +185,7 @@ export default function Cotizaciones() {
         nombre: prod.nombre,
         precio: Number(prod.precio),
         cantidad: cant,
+        stockDisponible: prod.cantidad,
       },
     ]);
   }
@@ -275,6 +288,9 @@ export default function Cotizaciones() {
     fetchCotizaciones();
   }
 
+  // ===================================================
+  // (SIN CAMBIOS) — ELIMINAR COTIZACIÓN
+  // ===================================================
   async function eliminarCotizacion(id) {
     const result = await Swal.fire({
       title: "¿Eliminar cotización?",
@@ -334,7 +350,7 @@ export default function Cotizaciones() {
           <option value="">Seleccione un producto</option>
           {productos.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.nombre} - RD${p.precio}
+              {p.nombre} - RD${p.precio} (Stock: {p.cantidad})
             </option>
           ))}
         </Select>
