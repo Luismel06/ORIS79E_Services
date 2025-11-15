@@ -14,6 +14,12 @@ import {
   MessageSquare,
 } from "lucide-react";
 
+// === EMAILJS CONFIG ===
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+const EMAILJS_TEMPLATE_ASIGNACION_ID =
+  import.meta.env.VITE_EMAILJS_TEMPLATE_ASIGNACION_ID;
+const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
 // === ESTILOS GENERALES ===
 const Container = styled.section`
   width: 100%;
@@ -296,7 +302,6 @@ const EvidenciaImg = styled.img`
 const CloseTicketButton = styled(ActionButton)`
   background-color: #e74c3c;
 `;
-
 // === COMPONENTE PRINCIPAL ===
 export default function Tickets() {
   const [tab, setTab] = useState("solicitudes");
@@ -484,7 +489,6 @@ export default function Tickets() {
     }
     cargarTodo();
   }
-
   // === 5. Cierre manual de ticket (opción C) ===
   async function cerrarTicketManual(ticket) {
     if (!ticket) return;
@@ -596,10 +600,18 @@ export default function Tickets() {
 
     const { tecnico, fecha, hora, tipo } = formValues;
 
+    // Buscar objeto del técnico para tener nombre + email
+    const tecnicoObj = tecnicos.find((t) => t.email === tecnico);
+    const tecnicoNombre = tecnicoObj ? tecnicoObj.nombre : tecnico;
+    const tecnicoAsignado = tecnicoObj
+      ? `${tecnicoObj.nombre} (${tecnicoObj.email})`
+      : tecnico;
+
+    // 1) Actualizar la solicitud
     await supabase
       .from("solicitudes")
       .update({
-        tecnico_asignado: tecnico,
+        tecnico_asignado: tecnicoAsignado, // 👉 "Nombre Apellido (correo)"
         estado: "Agendado",
         fecha_agendada: fecha,
         hora_agendada: hora,
@@ -607,14 +619,55 @@ export default function Tickets() {
       })
       .eq("id", id);
 
+    // 2) Registrar en historial
+    await supabase.from("historial_tickets").insert([
+      {
+        ticket_id: id,
+        usuario: "admin",
+        rol: "admin",
+        accion: "asignacion_tecnico",
+        descripcion: `Se asignó el técnico ${tecnicoAsignado} para la tarea "${tipo}" el ${fecha} a las ${hora}.`,
+      },
+    ]);
+
+    // 3) Enviar correo al cliente (template_asignacion)
+    try {
+      if (
+        EMAILJS_SERVICE_ID &&
+        EMAILJS_TEMPLATE_ASIGNACION_ID &&
+        EMAILJS_PUBLIC_KEY
+      ) {
+        await emailjs.send(
+          EMAILJS_SERVICE_ID,
+          EMAILJS_TEMPLATE_ASIGNACION_ID,
+          {
+            // Variables del template HTML
+            cliente: cliente,
+            tecnico: tecnicoNombre,
+            servicio: servicio,
+            fecha,
+            hora,
+            to_email: email, // Asegúrate de tener este campo en EmailJS
+          },
+          EMAILJS_PUBLIC_KEY
+        );
+      } else {
+        console.warn(
+          "Faltan variables de entorno de EmailJS para enviar la asignación."
+        );
+      }
+    } catch (err) {
+      console.error("Error enviando correo de asignación:", err);
+    }
+
     Swal.fire({
       icon: "success",
       title: "Técnico asignado",
+      text: "Se asignó el técnico y se notificó al cliente.",
     });
 
     cargarTodo();
   };
-
   // =======================
   // RENDER
   // =======================
