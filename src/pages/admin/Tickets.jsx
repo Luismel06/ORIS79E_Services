@@ -569,105 +569,97 @@ export default function Tickets() {
 
   // === 6. Asignar técnico desde solicitudes ===
   const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
-    const { value: formValues } = await Swal.fire({
-      title: "Asignar técnico y tarea",
-      html: `
-        <label style="font-weight:bold;">Técnico:</label><br/>
-        <select id="tecnico" class="swal2-input" style="width:80%;">
-          ${tecnicos
-            .map((t) => `<option value="${t.email}">${t.nombre}</option>`)
-            .join("")}
-        </select><br/>
+  const { value: formValues } = await Swal.fire({
+    title: "Asignar técnico y tarea",
+    html: `
+      <label style="font-weight:bold;">Técnico:</label><br/>
+      <select id="tecnico" class="swal2-input" style="width:80%;">
+        ${tecnicos
+          .map((t) => `<option value="${t.email}">${t.nombre}</option>`)
+          .join("")}
+      </select><br/>
 
-        <label style="font-weight:bold;">Fecha agendada:</label>
-        <input type="date" id="fecha" class="swal2-input" style="width:80%;"/><br/>
+      <label style="font-weight:bold;">Fecha agendada:</label>
+      <input type="date" id="fecha" class="swal2-input" style="width:80%;"/><br/>
 
-        <label style="font-weight:bold;">Hora:</label>
-        <input type="time" id="hora" class="swal2-input" style="width:80%;"/><br/>
+      <label style="font-weight:bold;">Hora:</label>
+      <input type="time" id="hora" class="swal2-input" style="width:80%;"/><br/>
 
-        <label style="font-weight:bold;">Tipo de tarea:</label>
-        <select id="tipo" class="swal2-input" style="width:80%;">
-          <option value="Levantamiento">Levantamiento</option>
-          <option value="Instalación">Instalación</option>
-          <option value="Mantenimiento">Mantenimiento</option>
-        </select>
-      `,
-      confirmButtonText: "Asignar",
-      showCancelButton: true,
-    });
+      <label style="font-weight:bold;">Tipo de tarea:</label>
+      <select id="tipo" class="swal2-input" style="width:80%;">
+        <option value="Levantamiento">Levantamiento</option>
+        <option value="Instalación">Instalación</option>
+        <option value="Mantenimiento">Mantenimiento</option>
+      </select>
+    `,
+    confirmButtonText: "Asignar",
+    showCancelButton: true,
+  });
 
-    if (!formValues) return;
+  if (!formValues) return;
 
-    const { tecnico, fecha, hora, tipo } = formValues;
+  const { tecnico, fecha, hora, tipo } = formValues;
 
-    // Buscar objeto del técnico para tener nombre + email
-    const tecnicoObj = tecnicos.find((t) => t.email === tecnico);
-    const tecnicoNombre = tecnicoObj ? tecnicoObj.nombre : tecnico;
-    const tecnicoAsignado = tecnicoObj
-      ? `${tecnicoObj.nombre} (${tecnicoObj.email})`
-      : tecnico;
+  // Buscar objeto del técnico para tener nombre + email
+  const tecnicoObj = tecnicos.find((t) => t.email === tecnico);
+  const tecnicoNombre = tecnicoObj ? tecnicoObj.nombre : "Técnico";
+  const tecnicoEmail = tecnicoObj ? tecnicoObj.email : tecnico;
 
-    // 1) Actualizar la solicitud
-    await supabase
-      .from("solicitudes")
-      .update({
-        tecnico_asignado: tecnicoAsignado, // 👉 "Nombre Apellido (correo)"
-        estado: "Agendado",
-        fecha_agendada: fecha,
-        hora_agendada: hora,
-        tipo_tarea: tipo,
-      })
-      .eq("id", id);
+  // 👉 Formato final garantizado
+  const tecnicoAsignado = `${tecnicoNombre} (${tecnicoEmail})`;
+  // Ejemplo guardado: "Luismel De Leon (luismel809524@gmail.com)"
 
-    // 2) Registrar en historial
-    await supabase.from("historial_tickets").insert([
+  // 1) Actualizar la solicitud
+  await supabase
+    .from("solicitudes")
+    .update({
+      tecnico_asignado: tecnicoAsignado,
+      estado: "Agendado",
+      fecha_agendada: fecha,
+      hora_agendada: hora,
+      tipo_tarea: tipo,
+    })
+    .eq("id", id);
+
+  // 2) Registrar en historial
+  await supabase.from("historial_tickets").insert([
+    {
+      ticket_id: id,
+      usuario: "admin",
+      rol: "admin",
+      accion: "asignacion_tecnico",
+      descripcion: `Se asignó el técnico ${tecnicoAsignado} para la tarea "${tipo}".`,
+    },
+  ]);
+
+  // 3) Enviar correo al cliente (template_asignacion)
+  try {
+    await emailjs.send(
+      EMAILJS_SERVICE_ID,
+      EMAILJS_TEMPLATE_ASIGNACION_ID,
       {
-        ticket_id: id,
-        usuario: "admin",
-        rol: "admin",
-        accion: "asignacion_tecnico",
-        descripcion: `Se asignó el técnico ${tecnicoAsignado} para la tarea "${tipo}" el ${fecha} a las ${hora}.`,
+        cliente: cliente,
+        tecnico: tecnicoNombre,
+        servicio: servicio,
+        fecha,
+        hora,
+        to_email: email,
       },
-    ]);
+      EMAILJS_PUBLIC_KEY
+    );
+  } catch (err) {
+    console.error("Error enviando correo de asignación:", err);
+  }
 
-    // 3) Enviar correo al cliente (template_asignacion)
-    try {
-      if (
-        EMAILJS_SERVICE_ID &&
-        EMAILJS_TEMPLATE_ASIGNACION_ID &&
-        EMAILJS_PUBLIC_KEY
-      ) {
-        await emailjs.send(
-          EMAILJS_SERVICE_ID,
-          EMAILJS_TEMPLATE_ASIGNACION_ID,
-          {
-            // Variables del template HTML
-            cliente: cliente,
-            tecnico: tecnicoNombre,
-            servicio: servicio,
-            fecha,
-            hora,
-            to_email: email, // Asegúrate de tener este campo en EmailJS
-          },
-          EMAILJS_PUBLIC_KEY
-        );
-      } else {
-        console.warn(
-          "Faltan variables de entorno de EmailJS para enviar la asignación."
-        );
-      }
-    } catch (err) {
-      console.error("Error enviando correo de asignación:", err);
-    }
+  Swal.fire({
+    icon: "success",
+    title: "Técnico asignado",
+    text: "Se asignó el técnico y se notificó al cliente.",
+  });
 
-    Swal.fire({
-      icon: "success",
-      title: "Técnico asignado",
-      text: "Se asignó el técnico y se notificó al cliente.",
-    });
+  cargarTodo();
+};
 
-    cargarTodo();
-  };
   // =======================
   // RENDER
   // =======================
