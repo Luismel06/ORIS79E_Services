@@ -159,36 +159,46 @@ export default function Cotizaciones() {
   // ==========================
   // 🚨 Validación de STOCK
   // ==========================
-  function agregarProducto() {
-    if (!productoSeleccionado) return;
+ function agregarProducto() {
+  if (!productoSeleccionado) return;
 
-    const prod = productos.find(
-      (p) => p.id === parseInt(productoSeleccionado)
+  const prod = productos.find(
+    (p) => p.id === parseInt(productoSeleccionado)
+  );
+  if (!prod) return;
+
+  let cant = parseInt(cantidad);
+
+  // 🚫 Validar cantidad inválida o negativa
+  if (isNaN(cant) || cant <= 0) {
+    Swal.fire(
+      "Cantidad inválida",
+      "La cantidad debe ser un número mayor que cero.",
+      "warning"
     );
-    if (!prod) return;
-
-    const cant = Number(cantidad) || 1;
-
-    if (cant > prod.cantidad) {
-      Swal.fire(
-        "Cantidad inválida",
-        `Solo tienes ${prod.cantidad} unidades disponibles en inventario.`,
-        "warning"
-      );
-      return;
-    }
-
-    setDetalle([
-      ...detalle,
-      {
-        id: prod.id,
-        nombre: prod.nombre,
-        precio: Number(prod.precio),
-        cantidad: cant,
-        stockDisponible: prod.cantidad,
-      },
-    ]);
+    return;
   }
+
+  // 🚫 Validar stock disponible
+  if (cant > prod.cantidad) {
+    Swal.fire(
+      "Stock insuficiente",
+      `Solo hay ${prod.cantidad} unidades disponibles de "${prod.nombre}".`,
+      "error"
+    );
+    return;
+  }
+
+  setDetalle([
+    ...detalle,
+    {
+      id: prod.id,
+      nombre: prod.nombre,
+      precio: Number(prod.precio),
+      cantidad: cant,
+    },
+  ]);
+}
 
   function eliminarProducto(index) {
     const nuevo = [...detalle];
@@ -356,20 +366,35 @@ export default function Cotizaciones() {
         </Select>
 
         <label>Cantidad</label>
-        <Input
-          type="number"
-          value={isNaN(cantidad) ? "" : cantidad}
-          min="1"
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === "") {
-              setCantidad("");
-            } else {
-              const num = parseInt(v);
-              setCantidad(isNaN(num) ? 1 : num);
-            }
-          }}
-        />
+<Input
+  type="number"
+  value={isNaN(cantidad) ? "" : cantidad}
+  min="1"
+  onChange={(e) => {
+    const v = e.target.value;
+
+    // Permitir limpiar el campo
+    if (v === "") {
+      setCantidad("");
+      return;
+    }
+
+    let num = parseInt(v);
+
+    if (isNaN(num)) {
+      setCantidad(1);
+      return;
+    }
+
+    // 👇 Evita negativos y ceros desde el input
+    if (num <= 0) {
+      num = 1;
+    }
+
+    setCantidad(num);
+  }}
+/>
+
 
         <Button type="button" onClick={agregarProducto}>
           Agregar producto
