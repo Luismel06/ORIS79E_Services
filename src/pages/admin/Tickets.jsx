@@ -600,26 +600,25 @@ export default function Tickets() {
 
   const { tecnico, fecha, hora, tipo } = formValues;
 
-  // Buscar objeto del técnico para tener nombre + email
-  const tecnicoObj = tecnicos.find((t) => t.email === tecnico);
-  const tecnicoNombre = tecnicoObj ? tecnicoObj.nombre : "Técnico";
-  const tecnicoEmail = tecnicoObj ? tecnicoObj.email : tecnico;
+// Buscar objeto del técnico para tener nombre + email
+const tecnicoObj = tecnicos.find((t) => t.email === tecnico);
+const tecnicoNombre = tecnicoObj ? tecnicoObj.nombre : tecnico;
+const tecnicoAsignado = tecnicoObj
+  ? `${tecnicoObj.nombre} (${tecnicoObj.email})`
+  : `Técnico (${tecnico})`; // <<< 🔥 evita undefined
 
-  // 👉 Formato final garantizado
-  const tecnicoAsignado = `${tecnicoNombre} (${tecnicoEmail})`;
-  // Ejemplo guardado: "Luismel De Leon (luismel809524@gmail.com)"
+// 1) Actualizar la solicitud
+await supabase
+  .from("solicitudes")
+  .update({
+    tecnico_asignado: tecnicoAsignado,
+    estado: "Agendado",
+    fecha_agendada: fecha,
+    hora_agendada: hora,
+    tipo_tarea: tipo,
+  })
+  .eq("id", id);
 
-  // 1) Actualizar la solicitud
-  await supabase
-    .from("solicitudes")
-    .update({
-      tecnico_asignado: tecnicoAsignado,
-      estado: "Agendado",
-      fecha_agendada: fecha,
-      hora_agendada: hora,
-      tipo_tarea: tipo,
-    })
-    .eq("id", id);
 
   // 2) Registrar en historial
   await supabase.from("historial_tickets").insert([
