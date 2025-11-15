@@ -568,15 +568,17 @@ export default function Tickets() {
   }
 
   // === 6. Asignar técnico desde solicitudes ===
-  const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
+ const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
+  const tecnicosHTML = tecnicos
+    .map((t) => `<option value="${t.email}">${t.nombre} (${t.email})</option>`)
+    .join("");
+
   const { value: formValues } = await Swal.fire({
     title: "Asignar técnico y tarea",
     html: `
       <label style="font-weight:bold;">Técnico:</label><br/>
       <select id="tecnico" class="swal2-input" style="width:80%;">
-        ${tecnicos
-          .map((t) => `<option value="${t.email}">${t.nombre}</option>`)
-          .join("")}
+        ${tecnicosHTML}
       </select><br/>
 
       <label style="font-weight:bold;">Fecha agendada:</label>
@@ -594,31 +596,37 @@ export default function Tickets() {
     `,
     confirmButtonText: "Asignar",
     showCancelButton: true,
+    preConfirm: () => {
+      return {
+        tecnico: document.getElementById("tecnico").value,
+        fecha: document.getElementById("fecha").value,
+        hora: document.getElementById("hora").value,
+        tipo: document.getElementById("tipo").value,
+      };
+    },
   });
 
   if (!formValues) return;
 
   const { tecnico, fecha, hora, tipo } = formValues;
 
-// Buscar objeto del técnico para tener nombre + email
-const tecnicoObj = tecnicos.find((t) => t.email === tecnico);
-const tecnicoNombre = tecnicoObj ? tecnicoObj.nombre : tecnico;
-const tecnicoAsignado = tecnicoObj
-  ? `${tecnicoObj.nombre} (${tecnicoObj.email})`
-  : `Técnico (${tecnico})`; // <<< 🔥 evita undefined
+  // OBJETO DEL TECNICO
+  const tecnicoObj = tecnicos.find((t) => t.email === tecnico);
+  const tecnicoAsignado = tecnicoObj
+    ? `${tecnicoObj.nombre} (${tecnicoObj.email})`
+    : tecnico;
 
-// 1) Actualizar la solicitud
-await supabase
-  .from("solicitudes")
-  .update({
-    tecnico_asignado: tecnicoAsignado,
-    estado: "Agendado",
-    fecha_agendada: fecha,
-    hora_agendada: hora,
-    tipo_tarea: tipo,
-  })
-  .eq("id", id);
-
+  // 1) Actualizar la solicitud
+  await supabase
+    .from("solicitudes")
+    .update({
+      tecnico_asignado: tecnicoAsignado,
+      estado: "Agendado",
+      fecha_agendada: fecha,
+      hora_agendada: hora,
+      tipo_tarea: tipo,
+    })
+    .eq("id", id);
 
   // 2) Registrar en historial
   await supabase.from("historial_tickets").insert([
@@ -627,19 +635,19 @@ await supabase
       usuario: "admin",
       rol: "admin",
       accion: "asignacion_tecnico",
-      descripcion: `Se asignó el técnico ${tecnicoAsignado} para la tarea "${tipo}".`,
+      descripcion: `Se asignó el técnico ${tecnicoAsignado} para la tarea "${tipo}" el ${fecha} a las ${hora}.`,
     },
   ]);
 
-  // 3) Enviar correo al cliente (template_asignacion)
+  // 3) Enviar correo al cliente (si tienes EmailJS)
   try {
     await emailjs.send(
       EMAILJS_SERVICE_ID,
       EMAILJS_TEMPLATE_ASIGNACION_ID,
       {
-        cliente: cliente,
-        tecnico: tecnicoNombre,
-        servicio: servicio,
+        cliente,
+        tecnico: tecnicoObj?.nombre ?? tecnico,
+        servicio,
         fecha,
         hora,
         to_email: email,
@@ -647,17 +655,17 @@ await supabase
       EMAILJS_PUBLIC_KEY
     );
   } catch (err) {
-    console.error("Error enviando correo de asignación:", err);
+    console.error("EmailJS error:", err);
   }
 
   Swal.fire({
     icon: "success",
-    title: "Técnico asignado",
-    text: "Se asignó el técnico y se notificó al cliente.",
+    title: "Técnico asignado correctamente",
   });
 
   cargarTodo();
 };
+
 
   // =======================
   // RENDER
