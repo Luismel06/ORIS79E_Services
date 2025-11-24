@@ -242,6 +242,27 @@ const InfoRow = styled.div`
   }
 `;
 
+// Tabla compacta para equipos/materiales (sin precios)
+const EquiposTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+
+  th,
+  td {
+    padding: 0.4rem 0.3rem;
+    border-bottom: 1px solid ${({ theme }) => theme.border};
+  }
+
+  th {
+    background: ${({ theme }) => theme.inputBackground};
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+  }
+`;
+
 const ChatPanel = styled.div`
   display: flex;
   flex-direction: column;
@@ -302,6 +323,7 @@ const EvidenciaImg = styled.img`
 const CloseTicketButton = styled(ActionButton)`
   background-color: #e74c3c;
 `;
+
 // === COMPONENTE PRINCIPAL ===
 export default function Tickets() {
   const [tab, setTab] = useState("solicitudes");
@@ -316,6 +338,10 @@ export default function Tickets() {
   const [ticketSeleccionado, setTicketSeleccionado] = useState(null);
   const [historial, setHistorial] = useState([]);
   const [requests, setRequests] = useState([]);
+
+  // 🔗 Cotización ligada a este ticket
+  const [cotizacionLigada, setCotizacionLigada] = useState(null);
+  const [detalleCotizacion, setDetalleCotizacion] = useState([]);
 
   useEffect(() => {
     cargarTodo();
@@ -401,6 +427,50 @@ export default function Tickets() {
     return t.estadoFinal || t.estado_solicitud || t.estado || "Agendado";
   }
 
+  // === Cargar cotización ligada + detalle de equipos ===
+  async function cargarCotizacionYDetalle(ticketId) {
+    setCotizacionLigada(null);
+    setDetalleCotizacion([]);
+
+    // Buscar cotización ligada por solicitud_id
+    const { data: cotList, error: errCot } = await supabase
+      .from("cotizaciones")
+      .select("*")
+      .eq("solicitud_id", ticketId)
+      .order("id", { ascending: false });
+
+    if (errCot || !cotList || cotList.length === 0) {
+      setCotizacionLigada(null);
+      setDetalleCotizacion([]);
+      return;
+    }
+
+    const cot = cotList[0];
+
+    const { data: det, error: errDet } = await supabase
+      .from("detalle_cotizacion")
+      .select("*")
+      .eq("cotizacion_id", cot.id);
+
+    if (errDet || !det) {
+      setCotizacionLigada(cot);
+      setDetalleCotizacion([]);
+      return;
+    }
+
+    const { data: productos } = await supabase
+      .from("productos")
+      .select("id, nombre, modelo");
+
+    const detalleConProducto = det.map((d) => ({
+      ...d,
+      producto: productos?.find((p) => p.id === d.producto_id) || null,
+    }));
+
+    setCotizacionLigada(cot);
+    setDetalleCotizacion(detalleConProducto);
+  }
+
   // === 3. Cargar DETALLES de un ticket
   async function abrirDetalles(ticket) {
     setTicketSeleccionado(ticket);
@@ -420,6 +490,9 @@ export default function Tickets() {
       .order("fecha_solicitud", { ascending: true });
 
     setRequests(r || []);
+
+    // 🔗 Cargar también la cotización ligada (equipos / materiales)
+    await cargarCotizacionYDetalle(ticket.id);
 
     setTab("detalles");
   }
@@ -489,6 +562,7 @@ export default function Tickets() {
     }
     cargarTodo();
   }
+
   // === 5. Cierre manual de ticket (opción C) ===
   async function cerrarTicketManual(ticket) {
     if (!ticket) return;
@@ -568,15 +642,16 @@ export default function Tickets() {
   }
 
   // === 6. Asignar técnico desde solicitudes ===
- // === 6. Asignar técnico desde solicitudes ===
-const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
-  const tecnicosHTML = tecnicos
-    .map((t) => `<option value="${t.email}">${t.nombre} (${t.email})</option>`)
-    .join("");
+  const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
+    const tecnicosHTML = tecnicos
+      .map(
+        (t) => `<option value="${t.email}">${t.nombre} (${t.email})</option>`
+      )
+      .join("");
 
-  const { value: formValues } = await Swal.fire({
-    title: "Asignar técnico y tarea",
-    html: `
+    const { value: formValues } = await Swal.fire({
+      title: "Asignar técnico y tarea",
+      html: `
       <label style="font-weight:bold;">Técnico:</label><br/>
       <select id="tecnico" class="swal2-input" style="width:80%;">
         ${tecnicosHTML}
@@ -595,85 +670,82 @@ const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
         <option value="Mantenimiento">Mantenimiento</option>
       </select>
     `,
-    confirmButtonText: "Asignar",
-    showCancelButton: true,
-    preConfirm: () => {
-      return {
-        tecnico: document.getElementById("tecnico").value,
-        fecha: document.getElementById("fecha").value,
-        hora: document.getElementById("hora").value,
-        tarea: document.getElementById("tipo").value, // ⬅️ AHORA SE LLAMA CORRECTO
-      };
-    },
-  });
-
-  if (!formValues) return;
-
-  const { tecnico, fecha, hora, tarea } = formValues;
-
-  // === OBJETO DEL TÉCNICO ===
-  const tecnicoObj = tecnicos.find((t) => t.email === tecnico);
-  const tecnicoAsignado = tecnicoObj
-    ? `${tecnicoObj.nombre} (${tecnicoObj.email})`
-    : tecnico;
-
-  // === 1) ACTUALIZAR BD ===
-  await supabase
-    .from("solicitudes")
-    .update({
-      tecnico_asignado: tecnicoAsignado,
-      estado: "Agendado",
-      fecha_agendada: fecha,
-      hora_agendada: hora,
-      tipo_tarea: tarea,
-    })
-    .eq("id", id);
-
-  // === 2) HISTORIAL ===
-  await supabase.from("historial_tickets").insert([
-    {
-      ticket_id: id,
-      usuario: "admin",
-      rol: "admin",
-      accion: "asignacion_tecnico",
-      descripcion: `Se asignó el técnico ${tecnicoAsignado} para la tarea "${tarea}" el ${fecha} a las ${hora}.`,
-    },
-  ]);
-
-  // === 3) ENVIAR CORREO ===
-  try {
-    await emailjs.send(
-      EMAILJS_SERVICE_ID,
-      EMAILJS_TEMPLATE_ASIGNACION_ID,
-      {
-        email: email,                 // ⬅️ CORRECTO (plantilla usa {{email}})
-        cliente: cliente,
-        tecnico: tecnicoObj?.nombre ?? tecnico,
-        servicio: servicio,
-        fecha: fecha,
-        hora: hora,
-        tarea: tarea,                // ⬅️ CORRECTO (plantilla usa {{tarea}})
-        name: "ORIS79E Services",
+      confirmButtonText: "Asignar",
+      showCancelButton: true,
+      preConfirm: () => {
+        return {
+          tecnico: document.getElementById("tecnico").value,
+          fecha: document.getElementById("fecha").value,
+          hora: document.getElementById("hora").value,
+          tarea: document.getElementById("tipo").value,
+        };
       },
-      EMAILJS_PUBLIC_KEY
-    );
+    });
 
-    console.log("Correo enviado correctamente ✔");
+    if (!formValues) return;
 
-  } catch (err) {
-    console.error("EmailJS error:", err);
-  }
+    const { tecnico, fecha, hora, tarea } = formValues;
 
-  Swal.fire({
-    icon: "success",
-    title: "Técnico asignado correctamente",
-    text: "El cliente ha sido notificado.",
-  });
+    // === OBJETO DEL TÉCNICO ===
+    const tecnicoObj = tecnicos.find((t) => t.email === tecnico);
+    const tecnicoAsignado = tecnicoObj
+      ? `${tecnicoObj.nombre} (${tecnicoObj.email})`
+      : tecnico;
 
-  cargarTodo();
-};
+    // === 1) ACTUALIZAR BD ===
+    await supabase
+      .from("solicitudes")
+      .update({
+        tecnico_asignado: tecnicoAsignado,
+        estado: "Agendado",
+        fecha_agendada: fecha,
+        hora_agendada: hora,
+        tipo_tarea: tarea,
+      })
+      .eq("id", id);
 
+    // === 2) HISTORIAL ===
+    await supabase.from("historial_tickets").insert([
+      {
+        ticket_id: id,
+        usuario: "admin",
+        rol: "admin",
+        accion: "asignacion_tecnico",
+        descripcion: `Se asignó el técnico ${tecnicoAsignado} para la tarea "${tarea}" el ${fecha} a las ${hora}.`,
+      },
+    ]);
 
+    // === 3) ENVIAR CORREO ===
+    try {
+      await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ASIGNACION_ID,
+        {
+          email: email,
+          cliente: cliente,
+          tecnico: tecnicoObj?.nombre ?? tecnico,
+          servicio: servicio,
+          fecha: fecha,
+          hora: hora,
+          tarea: tarea,
+          name: "ORIS79E Services",
+        },
+        EMAILJS_PUBLIC_KEY
+      );
+
+      console.log("Correo enviado correctamente ✔");
+    } catch (err) {
+      console.error("EmailJS error:", err);
+    }
+
+    Swal.fire({
+      icon: "success",
+      title: "Técnico asignado correctamente",
+      text: "El cliente ha sido notificado.",
+    });
+
+    cargarTodo();
+  };
 
   // =======================
   // RENDER
@@ -904,61 +976,60 @@ const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
                 </TicketHeaderLeft>
 
                 <TicketHeaderRight>
-  <EstadoBadge
-    $estado={obtenerEstadoTicket(ticketSeleccionado)}
-  >
-    ● {obtenerEstadoTicket(ticketSeleccionado)}
-  </EstadoBadge>
+                  <EstadoBadge
+                    $estado={obtenerEstadoTicket(ticketSeleccionado)}
+                  >
+                    ● {obtenerEstadoTicket(ticketSeleccionado)}
+                  </EstadoBadge>
 
-  <HeaderActions>
-    {ticketSeleccionado.telefono && (
-      <a href={`tel:${ticketSeleccionado.telefono}`}>
-        <Phone size={14} />
-        Llamar
-      </a>
-    )}
+                  <HeaderActions>
+                    {ticketSeleccionado.telefono && (
+                      <a href={`tel:${ticketSeleccionado.telefono}`}>
+                        <Phone size={14} />
+                        Llamar
+                      </a>
+                    )}
 
-    {ticketSeleccionado.chat_link && (
-      <a
-        href={ticketSeleccionado.chat_link}
-        target="_blank"
-        rel="noreferrer"
-      >
-        <MessageSquare size={14} />
-        Chat
-      </a>
-    )}
-  </HeaderActions>
+                    {ticketSeleccionado.chat_link && (
+                      <a
+                        href={ticketSeleccionado.chat_link}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <MessageSquare size={14} />
+                        Chat
+                      </a>
+                    )}
+                  </HeaderActions>
 
-  <button
-    style={{
-      marginTop: "10px",
-      background: "#00bcd4",
-      color: "white",
-      border: "none",
-      padding: "7px 12px",
-      borderRadius: "6px",
-      cursor: "pointer",
-      fontWeight: "600",
-      display: "flex",
-      alignItems: "center",
-      gap: "6px",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
-    }}
-    onClick={() =>
-      asignarTecnico(
-        ticketSeleccionado.id,
-        ticketSeleccionado.numero_caso,
-        ticketSeleccionado.cliente,
-        ticketSeleccionado.email,
-        ticketSeleccionado.servicio_nombre
-      )
-    }
-  >
-    🔄 Reasignar técnico
-  </button>
-</TicketHeaderRight>
-
+                  <button
+                    style={{
+                      marginTop: "10px",
+                      background: "#00bcd4",
+                      color: "white",
+                      border: "none",
+                      padding: "7px 12px",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontWeight: "600",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+                    }}
+                    onClick={() =>
+                      asignarTecnico(
+                        ticketSeleccionado.id,
+                        ticketSeleccionado.numero_caso,
+                        ticketSeleccionado.cliente,
+                        ticketSeleccionado.email,
+                        ticketSeleccionado.servicio_nombre
+                      )
+                    }
+                  >
+                    🔄 Reasignar técnico
+                  </button>
+                </TicketHeaderRight>
               </TicketHeader>
 
               <DetailContent>
@@ -997,6 +1068,11 @@ const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
                     <span>{ticketSeleccionado.email || "-"}</span>
                   </InfoRow>
 
+                  <InfoRow>
+                    <span>Dirección:</span>
+                    <span>{ticketSeleccionado.direccion || "-"}</span>
+                  </InfoRow>
+
                   <SectionTitle style={{ marginTop: "1.2rem" }}>
                     Descripción del problema
                   </SectionTitle>
@@ -1004,6 +1080,63 @@ const asignarTecnico = async (id, numero_caso, cliente, email, servicio) => {
                     {ticketSeleccionado.descripcion ||
                       "Sin descripción registrada."}
                   </p>
+
+                  {/* NUEVA SECCIÓN: EQUIPOS Y MATERIALES COTIZADOS */}
+                  <SectionTitle style={{ marginTop: "1.2rem" }}>
+                    Equipos y materiales cotizados
+                  </SectionTitle>
+
+                  {!cotizacionLigada ? (
+                    <p style={{ fontSize: "0.85rem", opacity: 0.75 }}>
+                      No hay una cotización ligada a este ticket todavía.
+                    </p>
+                  ) : (
+                    <>
+                      <p
+                        style={{
+                          fontSize: "0.85rem",
+                          opacity: 0.8,
+                          marginBottom: "0.3rem",
+                        }}
+                      >
+                        Cotización #{cotizacionLigada.id} — Total{" "}
+                        <strong>
+                          RD$
+                          {Number(cotizacionLigada.total || 0).toLocaleString(
+                            "es-DO",
+                            { minimumFractionDigits: 2 }
+                          )}
+                        </strong>
+                      </p>
+
+                      <EquiposTable>
+                        <thead>
+                          <tr>
+                            <th>Equipo / material</th>
+                            <th>Cant.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detalleCotizacion.length === 0 ? (
+                            <tr>
+                              <td colSpan={2}>
+                                Sin productos registrados en la cotización.
+                              </td>
+                            </tr>
+                          ) : (
+                            detalleCotizacion.map((d) => (
+                              <tr key={d.id}>
+                                <td>
+                                  {d.producto?.nombre || "Producto sin nombre"}
+                                </td>
+                                <td>{d.cantidad}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </EquiposTable>
+                    </>
+                  )}
 
                   <div style={{ marginTop: "1.4rem" }}>
                     <CloseTicketButton

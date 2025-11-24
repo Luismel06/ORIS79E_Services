@@ -90,6 +90,7 @@ const EstadoBadge = styled.span`
 const HeaderActions = styled.div`
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 
   a,
   button {
@@ -182,7 +183,8 @@ const ChatBubble = styled.div`
   font-size: 0.95rem;
   word-wrap: break-word;
 
-  background: ${({ $isMine, theme }) => ($isMine ? theme.accent : theme.cardBackground)};
+  background: ${({ $isMine, theme }) =>
+    $isMine ? theme.accent : theme.cardBackground};
   color: ${({ $isMine }) => ($isMine ? "#fff" : "inherit")};
 
   align-self: ${({ $isMine }) => ($isMine ? "flex-end" : "flex-start")};
@@ -292,6 +294,26 @@ const SendButton = styled.button`
   }
 `;
 
+/* Tabla para equipos/materiales cotizados (sin precios) */
+const EquiposTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+
+  th,
+  td {
+    border-bottom: 1px solid ${({ theme }) => theme.border};
+    padding: 0.3rem 0.4rem;
+    text-align: left;
+  }
+
+  th {
+    background: ${({ theme }) => theme.inputBackground};
+    font-weight: 600;
+  }
+`;
+
 /* === COMPONENTE PRINCIPAL === */
 
 export default function TicketTecnicoDetalle() {
@@ -305,6 +327,11 @@ export default function TicketTecnicoDetalle() {
   const [nota, setNota] = useState("");
   const [estadoSolicitado, setEstadoSolicitado] = useState("");
   const [files, setFiles] = useState([]);
+
+  // 🔹 Detalles avanzados / cotización ligada
+  const [showAvanzado, setShowAvanzado] = useState(false);
+  const [cotizacion, setCotizacion] = useState(null);
+  const [detalleInstalacion, setDetalleInstalacion] = useState([]);
 
   const chatRef = useRef(null);
 
@@ -342,6 +369,80 @@ export default function TicketTecnicoDetalle() {
         .single();
       setServicioNombre(serv?.nombre || "-");
     }
+
+    // 🔗 Resumen de instalación desde la cotización ligada a esta solicitud
+    if (data?.id) {
+      fetchResumenInstalacion(data.id);
+    }
+  }
+
+  async function fetchResumenInstalacion(solicitudId) {
+    // Buscar la última cotización asociada a esta solicitud/ticket
+    const { data: cotList, error: cotError } = await supabase
+      .from("cotizaciones")
+      .select(
+        "id, total, estado, nombre_servicio, servicio, precio_servicio, descuento"
+      )
+      .eq("solicitud_id", solicitudId)
+      .order("id", { ascending: false })
+      .limit(1);
+
+    if (cotError) {
+      console.error("Error cargando cotización ligada al ticket:", cotError);
+      return;
+    }
+
+    const cot = cotList?.[0] || null;
+    setCotizacion(cot);
+
+    if (!cot) {
+      setDetalleInstalacion([]);
+      return;
+    }
+
+    const { data: det, error: detError } = await supabase
+      .from("detalle_cotizacion")
+      .select("id, producto_id, cantidad, subtotal")
+      .eq("cotizacion_id", cot.id);
+
+    if (detError) {
+      console.error("Error cargando detalle de cotización:", detError);
+      setDetalleInstalacion([]);
+      return;
+    }
+
+    if (!det || det.length === 0) {
+      setDetalleInstalacion([]);
+      return;
+    }
+
+    const idsProductos = det
+      .map((d) => d.producto_id)
+      .filter((v) => v !== null && v !== undefined);
+
+    let productosMap = {};
+    if (idsProductos.length > 0) {
+      const { data: prods, error: prodError } = await supabase
+        .from("productos")
+        .select("id, nombre, categoria, marca, modelo")
+        .in("id", idsProductos);
+
+      if (prodError) {
+        console.error("Error cargando productos para detalle:", prodError);
+      } else {
+        productosMap = (prods || []).reduce((acc, p) => {
+          acc[p.id] = p;
+          return acc;
+        }, {});
+      }
+    }
+
+    const detalleConProd = (det || []).map((d) => ({
+      ...d,
+      producto: productosMap[d.producto_id] || null,
+    }));
+
+    setDetalleInstalacion(detalleConProd);
   }
 
   async function fetchHistorial() {
@@ -370,7 +471,9 @@ export default function TicketTecnicoDetalle() {
 
     for (const file of files) {
       const filePath = `ticket-${id}/${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage.from(bucket).upload(filePath, file);
+      const { error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file);
 
       if (!error) {
         const {
@@ -460,6 +563,24 @@ export default function TicketTecnicoDetalle() {
     );
   }, [historial, requests]);
 
+  // 🔢 Total de cámaras a instalar (según categoría/nombre del producto)
+  const totalCamaras = useMemo(() => {
+    if (!detalleInstalacion || detalleInstalacion.length === 0) return 0;
+
+    return detalleInstalacion.reduce((acc, d) => {
+      const cat = (d.producto?.categoria || "").toLowerCase();
+      const nombre = (d.producto?.nombre || "").toLowerCase();
+      const esCamara =
+        cat.includes("cámara") ||
+        cat.includes("camara") ||
+        nombre.includes("cámara") ||
+        nombre.includes("camara");
+
+      const cant = Number(d.cantidad || 0);
+      return esCamara ? acc + cant : acc;
+    }, 0);
+  }, [detalleInstalacion]);
+
   if (!ticket) {
     return (
       <Wrapper>
@@ -501,6 +622,10 @@ export default function TicketTecnicoDetalle() {
                   Chat
                 </a>
               )}
+
+              <button type="button" onClick={() => setShowAvanzado((p) => !p)}>
+                Más detalles
+              </button>
             </HeaderActions>
           </HeaderRight>
         </Header>
@@ -545,6 +670,87 @@ export default function TicketTecnicoDetalle() {
             <p style={{ fontSize: "0.9rem", opacity: 0.85 }}>
               {ticket.descripcion || "Sin descripción registrada."}
             </p>
+
+            {/* 🔍 DETALLES AVANZADOS DEL TICKET */}
+            {showAvanzado && (
+              <>
+                <SectionTitle style={{ marginTop: "1.2rem" }}>
+                  Detalles avanzados del ticket
+                </SectionTitle>
+
+                <InfoRow>
+                  <span>Dirección:</span>
+                  <span>{ticket.direccion || "-"}</span>
+                </InfoRow>
+
+                <InfoRow>
+                  <span>Tipo de cliente:</span>
+                  <span>{ticket.tipo_cliente || "Particular"}</span>
+                </InfoRow>
+
+                <InfoRow>
+                  <span>Empresa / Razón social:</span>
+                  <span>{ticket.empresa_nombre || "-"}</span>
+                </InfoRow>
+
+                <InfoRow>
+                  <span>RNC:</span>
+                  <span>{ticket.rnc || "-"}</span>
+                </InfoRow>
+
+                {cotizacion && (
+                  <>
+                    <SectionTitle style={{ marginTop: "1.2rem" }}>
+                      Equipos / materiales cotizados
+                    </SectionTitle>
+
+                    {totalCamaras > 0 && (
+                      <p
+                        style={{
+                          fontSize: "0.9rem",
+                          fontWeight: 600,
+                          marginBottom: "0.4rem",
+                        }}
+                      >
+                        Cámaras a instalar:{" "}
+                        <span style={{ color: "#00bcd4" }}>
+                          {totalCamaras} unidad(es)
+                        </span>
+                      </p>
+                    )}
+
+                    {detalleInstalacion.length === 0 ? (
+                      <p style={{ fontSize: "0.85rem", opacity: 0.8 }}>
+                        No hay detalle de productos registrado en la
+                        cotización.
+                      </p>
+                    ) : (
+                      <EquiposTable>
+                        <thead>
+                          <tr>
+                            <th>Producto</th>
+                            <th>Cant.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detalleInstalacion.map((d) => (
+                            <tr key={d.id}>
+                              <td>
+                                {d.producto?.nombre || "Producto"}
+                                {d.producto?.modelo
+                                  ? ` (${d.producto.modelo})`
+                                  : ""}
+                              </td>
+                              <td>{d.cantidad}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </EquiposTable>
+                    )}
+                  </>
+                )}
+              </>
+            )}
           </InfoPanel>
 
           {/* CHAT */}

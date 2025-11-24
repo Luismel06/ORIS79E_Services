@@ -123,29 +123,43 @@ export default function Cotizaciones() {
   const [descuento, setDescuento] = useState(0);
   const [servicio, setServicio] = useState("");
   const [servicios, setServicios] = useState([]);
+
   const [productos, setProductos] = useState([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState("");
   const [cantidad, setCantidad] = useState(1);
   const [detalle, setDetalle] = useState([]);
+
   const [cotizaciones, setCotizaciones] = useState([]);
   const [nombreServicio, setNombreServicio] = useState("");
   const [precioServicio, setPrecioServicio] = useState(0);
+  const [usaAnticipo, setUsaAnticipo] = useState(false);
+  const [ajustePrecio, setAjustePrecio] = useState(0);
+
+  // 🔹 Solicitudes (tickets)
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [solicitudSeleccionada, setSolicitudSeleccionada] = useState("");
+
+  // Para filtros de productos (categoría / marca)
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState("");
+  const [marcaSeleccionada, setMarcaSeleccionada] = useState("");
+
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchServicios();
     fetchProductos();
     fetchCotizaciones();
+    fetchSolicitudes();
   }, []);
 
   async function fetchServicios() {
     const { data, error } = await supabase.from("servicios").select("*");
-    if (!error) setServicios(data);
+    if (!error) setServicios(data || []);
   }
 
   async function fetchProductos() {
     const { data, error } = await supabase.from("productos").select("*");
-    if (!error) setProductos(data);
+    if (!error) setProductos(data || []);
   }
 
   async function fetchCotizaciones() {
@@ -153,52 +167,97 @@ export default function Cotizaciones() {
       .from("cotizaciones")
       .select("*")
       .order("id", { ascending: false });
-    if (!error) setCotizaciones(data);
+    if (!error) setCotizaciones(data || []);
   }
 
-  // ==========================
-  // 🚨 Validación de STOCK
-  // ==========================
- function agregarProducto() {
-  if (!productoSeleccionado) return;
+  async function fetchSolicitudes() {
+    const { data, error } = await supabase
+      .from("solicitudes")
+      .select("id, cliente, servicio_id, estado, fecha, numero_caso");
+    if (!error) setSolicitudes(data || []);
+  }
 
-  const prod = productos.find(
-    (p) => p.id === parseInt(productoSeleccionado)
+  // ========= CATEGORÍAS / MARCAS PARA PRODUCTOS =========
+  const categorias = Array.from(
+    new Set((productos || []).map((p) => p.categoria || "Otros"))
   );
-  if (!prod) return;
 
-  let cant = parseInt(cantidad);
+  const marcasFiltradas = Array.from(
+    new Set(
+      (productos || [])
+        .filter((p) =>
+          categoriaSeleccionada
+            ? (p.categoria || "Otros") === categoriaSeleccionada
+            : true
+        )
+        .map((p) => p.marca || p.proveedor || "Sin marca")
+    )
+  );
 
-  // 🚫 Validar cantidad inválida o negativa
-  if (isNaN(cant) || cant <= 0) {
-    Swal.fire(
-      "Cantidad inválida",
-      "La cantidad debe ser un número mayor que cero.",
-      "warning"
+  const productosFiltrados = (productos || []).filter((p) => {
+    const cat = p.categoria || "Otros";
+    const marca = p.marca || p.proveedor || "Sin marca";
+
+    if (categoriaSeleccionada && cat !== categoriaSeleccionada) return false;
+    if (marcaSeleccionada && marca !== marcaSeleccionada) return false;
+    return true;
+  });
+
+  // ========= AGREGAR PRODUCTO A DETALLE =========
+  function agregarProducto() {
+    if (!productoSeleccionado) return;
+
+    const prod = productos.find(
+      (p) => p.id === parseInt(productoSeleccionado)
     );
-    return;
-  }
+    if (!prod) return;
 
-  // 🚫 Validar stock disponible
-  if (cant > prod.cantidad) {
-    Swal.fire(
-      "Stock insuficiente",
-      `Solo hay ${prod.cantidad} unidades disponibles de "${prod.nombre}".`,
-      "error"
-    );
-    return;
-  }
+    const cant = Number(cantidad);
 
-  setDetalle([
-    ...detalle,
-    {
-      id: prod.id,
-      nombre: prod.nombre,
-      precio: Number(prod.precio),
-      cantidad: cant,
-    },
-  ]);
-}
+    if (!cant || cant <= 0) {
+      Swal.fire(
+        "Cantidad inválida",
+        "La cantidad debe ser mayor que cero.",
+        "warning"
+      );
+      return;
+    }
+
+    if (prod.cantidad != null && cant > Number(prod.cantidad)) {
+      Swal.fire(
+        "Stock insuficiente",
+        `Solo tienes ${prod.cantidad} unidades disponibles de "${prod.nombre}".`,
+        "warning"
+      );
+      return;
+    }
+
+    const precioBase = Number(prod.precio) || 0;
+    const extra = Number(ajustePrecio) || 0;
+    const precioFinalUnitario = precioBase + extra;
+
+    if (precioFinalUnitario <= 0) {
+      Swal.fire(
+        "Precio inválido",
+        "El precio final por unidad debe ser mayor que cero.",
+        "warning"
+      );
+      return;
+    }
+
+    setDetalle([
+      ...detalle,
+      {
+        id: prod.id,
+        nombre: prod.nombre,
+        cantidad: cant,
+        precioBase,
+        extra, // monto extra por unidad
+      },
+    ]);
+
+    setAjustePrecio(0);
+  }
 
   function eliminarProducto(index) {
     const nuevo = [...detalle];
@@ -208,17 +267,19 @@ export default function Cotizaciones() {
 
   function calcularTotal() {
     const subtotalProductos = detalle.reduce((acc, item) => {
-      const precio = Number(item.precio);
-      const cant = Number(item.cantidad);
-      if (isNaN(precio) || isNaN(cant)) return acc;
-      return acc + precio * cant;
+      const base = Number(item.precioBase) || 0;
+      const extra = Number(item.extra) || 0;
+      const cant = Number(item.cantidad) || 0;
+      const unit = base + extra;
+      if (unit <= 0 || cant <= 0) return acc;
+      return acc + unit * cant;
     }, 0);
 
     const servicioNum = Number(precioServicio) || 0;
-    const base = subtotalProductos + servicioNum;
+    const baseTotal = subtotalProductos + servicioNum;
 
     const desc = Number(descuento) || 0;
-    const total = base - (base * desc) / 100;
+    const total = baseTotal - (baseTotal * desc) / 100;
 
     return isNaN(total) ? 0 : total;
   }
@@ -251,6 +312,14 @@ export default function Cotizaciones() {
       return;
     }
 
+    let montoAnticipo = 0;
+    let montoPendiente = 0;
+
+    if (usaAnticipo) {
+      montoAnticipo = Number((total * 0.5).toFixed(2));
+      montoPendiente = Number((total - montoAnticipo).toFixed(2));
+    }
+
     const { data: cot, error } = await supabase
       .from("cotizaciones")
       .insert([
@@ -263,6 +332,12 @@ export default function Cotizaciones() {
           precio_servicio: Number(precioServicio) || 0,
           fecha: new Date().toISOString(),
           estado: "pendiente",
+          usa_anticipo: usaAnticipo,
+          monto_anticipo: montoAnticipo,
+          monto_pendiente: montoPendiente,
+          solicitud_id: solicitudSeleccionada
+            ? Number(solicitudSeleccionada)
+            : null, // 🔗 vínculo con la solicitud/ticket
         },
       ])
       .select()
@@ -274,13 +349,19 @@ export default function Cotizaciones() {
       return;
     }
 
+    // Guardar detalle de productos
     for (const d of detalle) {
+      const base = Number(d.precioBase) || 0;
+      const extra = Number(d.extra) || 0;
+      const cant = Number(d.cantidad) || 0;
+      const unit = base + extra;
+
       await supabase.from("detalle_cotizacion").insert([
         {
           cotizacion_id: cot.id,
           producto_id: d.id,
-          cantidad: d.cantidad,
-          subtotal: d.precio * d.cantidad,
+          cantidad: cant,
+          subtotal: unit * cant,
         },
       ]);
     }
@@ -295,12 +376,14 @@ export default function Cotizaciones() {
     setDescuento(0);
     setNombreServicio("");
     setPrecioServicio(0);
+    setUsaAnticipo(false);
+    setAjustePrecio(0);
+    setCategoriaSeleccionada("");
+    setMarcaSeleccionada("");
+    setSolicitudSeleccionada("");
     fetchCotizaciones();
   }
 
-  // ===================================================
-  // (SIN CAMBIOS) — ELIMINAR COTIZACIÓN
-  // ===================================================
   async function eliminarCotizacion(id) {
     const result = await Swal.fire({
       title: "¿Eliminar cotización?",
@@ -313,18 +396,27 @@ export default function Cotizaciones() {
 
     if (!result.isConfirmed) return;
 
-    // Primero eliminar detalles
-    await supabase
-      .from("detalle_cotizacion")
-      .delete()
-      .eq("cotizacion_id", id);
-
-    // Luego la cotización
+    await supabase.from("detalle_cotizacion").delete().eq("cotizacion_id", id);
     await supabase.from("cotizaciones").delete().eq("id", id);
 
     setCotizaciones((prev) => prev.filter((c) => c.id !== id));
 
     Swal.fire("Eliminada", "La cotización ha sido eliminada.", "success");
+  }
+
+  const totalActual = calcularTotal();
+  const anticipoActual = usaAnticipo
+    ? Number((totalActual * 0.5).toFixed(2))
+    : 0;
+  const pendienteActual = usaAnticipo
+    ? Number((totalActual - anticipoActual).toFixed(2))
+    : 0;
+
+  // Helper para mostrar nombre de servicio desde servicio_id de la solicitud
+  function getNombreServicioDesdeSolicitud(solicitud) {
+    if (!solicitud?.servicio_id) return "";
+    const s = servicios.find((svc) => svc.id === solicitud.servicio_id);
+    return s?.nombre || "";
   }
 
   return (
@@ -352,49 +444,129 @@ export default function Cotizaciones() {
           ))}
         </Select>
 
+        {/* 🔗 VINCULAR SOLICITUD / TICKET */}
+        <label>Vincular solicitud / ticket</label>
+        <Select
+          value={solicitudSeleccionada}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSolicitudSeleccionada(value);
+
+            if (!value) return;
+
+            const solicitud = solicitudes.find(
+              (sol) => sol.id === Number(value)
+            );
+            if (!solicitud) return;
+
+            // Autorelleno de cliente
+            if (solicitud.cliente && !cliente) {
+              setCliente(solicitud.cliente);
+            }
+
+            // Autorelleno de servicio desde servicio_id
+            const nombreServ = getNombreServicioDesdeSolicitud(solicitud);
+            if (nombreServ && !servicio) {
+              setServicio(nombreServ);
+            }
+          }}
+        >
+          <option value="">Sin solicitud ligada</option>
+          {solicitudes.map((sol) => (
+            <option key={sol.id} value={sol.id}>
+              {`#${sol.id} - ${
+                sol.numero_caso || "SIN CASO"
+              } - ${sol.cliente || "Sin nombre"} - ${
+                getNombreServicioDesdeSolicitud(sol) || "Servicio"
+              } - ${sol.estado || "Agendado"}`}
+            </option>
+          ))}
+        </Select>
+
+        {/* FILTROS Y PRODUCTO */}
+        <label>Categoría</label>
+        <Select
+          value={categoriaSeleccionada}
+          onChange={(e) => {
+            setCategoriaSeleccionada(e.target.value);
+            setMarcaSeleccionada("");
+            setProductoSeleccionado("");
+          }}
+        >
+          <option value="">Todas</option>
+          {categorias.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </Select>
+
+        <label>Marca</label>
+        <Select
+          value={marcaSeleccionada}
+          onChange={(e) => {
+            setMarcaSeleccionada(e.target.value);
+            setProductoSeleccionado("");
+          }}
+          disabled={!categoriaSeleccionada && categorias.length > 0}
+        >
+          <option value="">Todas</option>
+          {marcasFiltradas.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </Select>
+
         <label>Producto</label>
         <Select
           value={productoSeleccionado}
           onChange={(e) => setProductoSeleccionado(e.target.value)}
         >
           <option value="">Seleccione un producto</option>
-          {productos.map((p) => (
+          {productosFiltrados.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.nombre} - RD${p.precio} (Stock: {p.cantidad})
+              {p.nombre}
+              {p.modelo ? ` - ${p.modelo}` : ""} — RD${p.precio}
             </option>
           ))}
         </Select>
 
         <label>Cantidad</label>
-<Input
-  type="number"
-  value={isNaN(cantidad) ? "" : cantidad}
-  min="1"
-  onChange={(e) => {
-    const v = e.target.value;
+        <Input
+          type="number"
+          value={isNaN(cantidad) ? "" : cantidad}
+          min="1"
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === "") {
+              setCantidad("");
+            } else {
+              const num = parseInt(v);
+              if (num < 0) {
+                setCantidad(1);
+              } else {
+                setCantidad(isNaN(num) ? 1 : num);
+              }
+            }
+          }}
+        />
 
-    // Permitir limpiar el campo
-    if (v === "") {
-      setCantidad("");
-      return;
-    }
-
-    let num = parseInt(v);
-
-    if (isNaN(num)) {
-      setCantidad(1);
-      return;
-    }
-
-    // 👇 Evita negativos y ceros desde el input
-    if (num <= 0) {
-      num = 1;
-    }
-
-    setCantidad(num);
-  }}
-/>
-
+        <label>Monto extra por unidad (opcional)</label>
+        <Input
+          type="number"
+          value={ajustePrecio === 0 ? "" : ajustePrecio}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === "") {
+              setAjustePrecio(0);
+            } else {
+              const num = parseFloat(v);
+              setAjustePrecio(isNaN(num) ? 0 : num);
+            }
+          }}
+          placeholder="Ej: 1000 para subir el precio por unidad"
+        />
 
         <Button type="button" onClick={agregarProducto}>
           Agregar producto
@@ -406,27 +578,36 @@ export default function Cotizaciones() {
               <tr>
                 <th>Producto</th>
                 <th>Cant.</th>
-                <th>Precio</th>
+                <th>Precio base</th>
+                <th>Extra / unidad</th>
                 <th>Subtotal</th>
                 <th>Quitar</th>
               </tr>
             </thead>
             <tbody>
-              {detalle.map((d, i) => (
-                <tr key={i}>
-                  <td>{d.nombre}</td>
-                  <td>{d.cantidad}</td>
-                  <td>RD${d.precio}</td>
-                  <td>RD${(d.precio * d.cantidad).toFixed(2)}</td>
-                  <td>
-                    <Trash2
-                      size={20}
-                      className="delete-btn"
-                      onClick={() => eliminarProducto(i)}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {detalle.map((d, i) => {
+                const base = Number(d.precioBase) || 0;
+                const extra = Number(d.extra) || 0;
+                const cant = Number(d.cantidad) || 0;
+                const subtotal = (base + extra) * cant;
+
+                return (
+                  <tr key={i}>
+                    <td>{d.nombre}</td>
+                    <td>{cant}</td>
+                    <td>RD${base.toFixed(2)}</td>
+                    <td>RD${extra.toFixed(2)}</td>
+                    <td>RD${subtotal.toFixed(2)}</td>
+                    <td>
+                      <Trash2
+                        size={20}
+                        className="delete-btn"
+                        onClick={() => eliminarProducto(i)}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </Table>
         )}
@@ -468,6 +649,42 @@ export default function Cotizaciones() {
           }}
         />
 
+        <div
+          style={{
+            marginTop: "1rem",
+            padding: "0.8rem 1rem",
+            borderRadius: "8px",
+            border: "1px solid rgba(0,0,0,0.08)",
+            background: "rgba(0,188,212,0.03)",
+          }}
+        >
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={usaAnticipo}
+              onChange={(e) => setUsaAnticipo(e.target.checked)}
+            />
+            <span>Permitir pago 50% inicial / 50% restante</span>
+          </label>
+
+          {usaAnticipo && (
+            <div style={{ marginTop: 8, fontSize: "0.9rem" }}>
+              <div>
+                Total estimado:{" "}
+                <strong>RD${totalActual.toFixed(2)}</strong>
+              </div>
+              <div>
+                Anticipo (50%):{" "}
+                <strong>RD${anticipoActual.toFixed(2)}</strong>
+              </div>
+              <div>
+                Pendiente (50%):{" "}
+                <strong>RD${pendienteActual.toFixed(2)}</strong>
+              </div>
+            </div>
+          )}
+        </div>
+
         <Button type="submit">Guardar cotización</Button>
       </Form>
 
@@ -478,8 +695,10 @@ export default function Cotizaciones() {
             <th>ID</th>
             <th>Cliente</th>
             <th>Servicio</th>
+            <th>Ticket / Solicitud</th>
             <th>Total</th>
             <th>Estado</th>
+            <th>Anticipo</th>
             <th>Fecha</th>
             <th>Acciones</th>
           </tr>
@@ -490,11 +709,22 @@ export default function Cotizaciones() {
               <td>{c.id}</td>
               <td>{c.cliente}</td>
               <td>{c.servicio}</td>
-              <td>RD${c.total}</td>
+              <td>{c.solicitud_id ? `#${c.solicitud_id}` : "-"}</td>
+              <td>
+                RD$
+                {Number(c.total || 0).toLocaleString("es-DO", {
+                  minimumFractionDigits: 2,
+                })}
+              </td>
               <td>
                 <EstadoBadge estado={c.estado || "pendiente"}>
                   ● {formatearEstado(c.estado)}
                 </EstadoBadge>
+              </td>
+              <td>
+                {c.usa_anticipo
+                  ? `Inicial: RD$${c.monto_anticipo} / Restante: RD$${c.monto_pendiente}`
+                  : "No"}
               </td>
               <td>{new Date(c.fecha).toLocaleDateString()}</td>
               <td style={{ display: "flex", gap: "0.5rem" }}>

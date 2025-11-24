@@ -152,7 +152,7 @@ const TableWrapper = styled.div`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  min-width: 680px;
+  min-width: 900px;
 
   th,
   td {
@@ -218,6 +218,18 @@ const Input = styled.input`
   padding: 0.7rem 0.8rem;
 `;
 
+const Field = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const Label = styled.label`
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
+  color: ${({ theme }) => theme.text};
+  opacity: 0.8;
+`;
+
 const FormActions = styled.div`
   display: flex;
   gap: 0.5rem;
@@ -234,6 +246,10 @@ export default function Productos() {
   const [editingId, setEditingId] = useState(null);
   const [query, setQuery] = useState("");
 
+  const [categoria, setCategoria] = useState("");
+  const [marca, setMarca] = useState("");
+  const [modelo, setModelo] = useState("");
+
   const [form, setForm] = useState({
     nombre: "",
     proveedor: "",
@@ -244,11 +260,22 @@ export default function Productos() {
   const filtered = useMemo(() => {
     if (!query.trim()) return productos;
     const q = query.toLowerCase();
-    return productos.filter(
-      (p) =>
-        p.nombre?.toLowerCase().includes(q) ||
-        p.proveedor?.toLowerCase().includes(q)
-    );
+
+    return productos.filter((p) => {
+      const nombre = p.nombre?.toLowerCase() || "";
+      const proveedor = p.proveedor?.toLowerCase() || "";
+      const categoriaP = p.categoria?.toLowerCase() || "";
+      const marcaP = p.marca?.toLowerCase() || "";
+      const modeloP = p.modelo?.toLowerCase() || "";
+
+      return (
+        nombre.includes(q) ||
+        proveedor.includes(q) ||
+        categoriaP.includes(q) ||
+        marcaP.includes(q) ||
+        modeloP.includes(q)
+      );
+    });
   }, [query, productos]);
 
   /* === MÉTRICAS === */
@@ -294,6 +321,9 @@ export default function Productos() {
 
   function resetForm() {
     setForm({ nombre: "", proveedor: "", cantidad: "", precio: "" });
+    setCategoria("");
+    setMarca("");
+    setModelo("");
     setAdding(false);
     setEditingId(null);
   }
@@ -301,7 +331,8 @@ export default function Productos() {
   function validate(f) {
     if (!f.nombre.trim()) return "El nombre es obligatorio.";
     if (!f.proveedor.trim()) return "El proveedor es obligatorio.";
-    if (!f.cantidad || isNaN(f.cantidad)) return "La cantidad debe ser numérica.";
+    if (!f.cantidad || isNaN(f.cantidad))
+      return "La cantidad debe ser numérica.";
     if (!f.precio || isNaN(f.precio)) return "El precio debe ser numérico.";
     return null;
   }
@@ -326,6 +357,9 @@ export default function Productos() {
             proveedor: form.proveedor,
             cantidad: parseInt(form.cantidad),
             precio: parseFloat(form.precio),
+            categoria: categoria || null,
+            marca: marca || null,
+            modelo: modelo || null,
           },
         ])
         .select()
@@ -368,6 +402,9 @@ export default function Productos() {
           proveedor: form.proveedor,
           cantidad: parseInt(form.cantidad),
           precio: parseFloat(form.precio),
+          categoria: categoria || null,
+          marca: marca || null,
+          modelo: modelo || null,
         })
         .eq("id", editingId)
         .select()
@@ -460,7 +497,10 @@ export default function Productos() {
           </IconWrap>
           <MetricInfo>
             <MetricValue>
-              RD${valorInventario.toLocaleString("es-DO", { minimumFractionDigits: 2 })}
+              RD$
+              {valorInventario.toLocaleString("es-DO", {
+                minimumFractionDigits: 2,
+              })}
             </MetricValue>
             <MetricLabel>Valor total inventario</MetricLabel>
           </MetricInfo>
@@ -472,7 +512,9 @@ export default function Productos() {
             </IconWrap>
             <MetricInfo>
               <MetricValue>{productoMenorStock.nombre}</MetricValue>
-              <MetricLabel>Menor stock ({productoMenorStock.cantidad})</MetricLabel>
+              <MetricLabel>
+                Menor stock ({productoMenorStock.cantidad})
+              </MetricLabel>
             </MetricInfo>
           </MetricCard>
         )}
@@ -482,7 +524,12 @@ export default function Productos() {
               <TrendingUp size={22} />
             </IconWrap>
             <MetricInfo>
-              <MetricValue>RD${productoMasCaro.precio.toLocaleString()}</MetricValue>
+              <MetricValue>
+                RD$
+                {productoMasCaro.precio.toLocaleString("es-DO", {
+                  minimumFractionDigits: 2,
+                })}
+              </MetricValue>
               <MetricLabel>Más caro ({productoMasCaro.nombre})</MetricLabel>
             </MetricInfo>
           </MetricCard>
@@ -525,6 +572,37 @@ export default function Productos() {
             value={form.precio}
             onChange={(e) => setForm({ ...form, precio: e.target.value })}
           />
+
+          <Field>
+            <Label>Categoría</Label>
+            <Input
+              type="text"
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+              placeholder="Ej: Cámaras, NVR, Cableado, Tubos…"
+            />
+          </Field>
+
+          <Field>
+            <Label>Marca</Label>
+            <Input
+              type="text"
+              value={marca}
+              onChange={(e) => setMarca(e.target.value)}
+              placeholder="Ej: Hikvision, Dahua, Ubiquiti…"
+            />
+          </Field>
+
+          <Field>
+            <Label>Modelo (opcional)</Label>
+            <Input
+              type="text"
+              value={modelo}
+              onChange={(e) => setModelo(e.target.value)}
+              placeholder="Ej: DS-2CD1043G0-I"
+            />
+          </Field>
+
           <FormActions>
             <Button type="submit">
               <Save size={18} /> {editingId ? "Guardar cambios" : "Agregar"}
@@ -548,6 +626,9 @@ export default function Productos() {
               <tr>
                 <th>Nombre</th>
                 <th>Proveedor</th>
+                <th>Categoría</th>
+                <th>Marca</th>
+                <th>Modelo</th>
                 <th>Cantidad</th>
                 <th>Precio</th>
                 <th>Acciones</th>
@@ -558,19 +639,33 @@ export default function Productos() {
                 <tr key={p.id}>
                   <td>{p.nombre}</td>
                   <td>{p.proveedor}</td>
+                  <td>{p.categoria || "-"}</td>
+                  <td>{p.marca || "-"}</td>
+                  <td>{p.modelo || "-"}</td>
                   <td>{p.cantidad}</td>
-                  <td>RD${p.precio.toLocaleString("es-DO", { minimumFractionDigits: 2 })}</td>
+                  <td>
+                    RD$
+                    {p.precio.toLocaleString("es-DO", {
+                      minimumFractionDigits: 2,
+                    })}
+                  </td>
                   <td>
                     <RowActions>
-                      <IconAction onClick={() => {
-                        setEditingId(p.id);
-                        setForm({
-                          nombre: p.nombre,
-                          proveedor: p.proveedor,
-                          cantidad: p.cantidad,
-                          precio: p.precio,
-                        });
-                      }}>
+                      <IconAction
+                        onClick={() => {
+                          setEditingId(p.id);
+                          setForm({
+                            nombre: p.nombre || "",
+                            proveedor: p.proveedor || "",
+                            cantidad: p.cantidad ?? "",
+                            precio: p.precio ?? "",
+                          });
+                          setCategoria(p.categoria || "");
+                          setMarca(p.marca || "");
+                          setModelo(p.modelo || "");
+                          setAdding(false);
+                        }}
+                      >
                         <Pencil size={16} /> Editar
                       </IconAction>
                       <IconAction onClick={() => onDelete(p.id)}>
