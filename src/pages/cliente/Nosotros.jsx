@@ -164,7 +164,7 @@ export default function Nosotros() {
     text: "Inicio de ORIS79E Services, ofreciendo servicios de instalación, mantenimiento y soporte técnico con una visión clara de calidad e innovación.",
   },
   {
-    year: "2025 - Actualidad",
+    year: "2026 - Actualidad",
     text: "Crecimiento sostenido, implementación de plataforma digital para solicitud de servicios y expansión de nuestra base de clientes en toda República Dominicana.",
   },
   {
