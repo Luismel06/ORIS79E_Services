@@ -135,7 +135,7 @@ export default function Contacto() {
 
         <Card whileHover={{ scale: 1.03 }}>
           <h3>Dirección</h3>
-          <p>Calle Marginado Las Américas, Gonzales 2, 3D</p>
+          <p>Calle Marginal Las Américas, Gonzales 2, 3D</p>
         </Card>
       </InfoContainer>
       <MapContainer>
