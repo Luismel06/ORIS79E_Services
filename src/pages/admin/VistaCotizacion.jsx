@@ -129,9 +129,9 @@ const EstadoBadge = styled.span`
 // 🔹 Datos de la empresa para el PDF
 const EMPRESA = {
   nombre: "ORIS79E SERVICES",
-  rnc: "RNC: 1-00-00000-0", // cambia esto por tu RNC real
+  rnc: "1-33-56833-2",
   direccion: "Santo Domingo, República Dominicana",
-  telefono: "+1 (829) 723-6011",
+  telefono: "+1 (849) 577-6011",
   email: "oriseservice394@gmail.com",
 };
 
