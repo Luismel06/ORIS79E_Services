@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import styled from "styled-components";
 import { supabase } from "../../supabase/supabase.config.jsx";
 import { useAuthStore } from "../../store/useAuthStore";
@@ -139,6 +139,13 @@ export default function TicketsTecnico() {
     return ticket.estado_solicitud || ticket.estado || "Agendado";
   }
 
+  function obtenerDocumento(ticket) {
+    if (!ticket) return "-";
+    if (ticket.tipo_cliente === "empresa") return ticket.empresa_rnc || "-";
+    if (ticket.tipo_cliente === "persona") return ticket.cedula || "-";
+    return ticket.cedula || ticket.empresa_rnc || "-";
+  }
+
   return (
     <Wrapper>
       <Container>
@@ -174,6 +181,9 @@ export default function TicketsTecnico() {
                         t.descripcion ||
                         "Ticket asignado. Haz clic para ver detalles."}
                     </span>
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: "0.85rem", opacity: 0.85 }}>
+                    Documento: {obtenerDocumento(t)}
                   </div>
                 </TicketBody>
 

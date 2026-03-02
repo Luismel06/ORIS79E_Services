@@ -1,4 +1,4 @@
-import { supabase } from "./supabase.config";
+﻿import { supabase } from "./supabase.config";
 
 // Crear cotización + items
 export async function crearCotizacion({ cliente, numero_caso, descuento, total, items }) {

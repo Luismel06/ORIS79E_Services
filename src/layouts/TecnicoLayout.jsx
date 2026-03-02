@@ -1,6 +1,6 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import styled, { createGlobalStyle, keyframes } from "styled-components";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../supabase/supabase.config.jsx";
 import Swal from "sweetalert2";
 import {
@@ -14,6 +14,18 @@ import {
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext"; // ← usa tu propio hook
 import logo from "../assets/logo.png";
+
+function normalizarRol(rol = "") {
+  const limpio = String(rol)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  if (limpio === "admin" || limpio === "administrador") return "admin";
+  if (limpio === "tecnico" || limpio === "tecnica") return "tecnico";
+  return "none";
+}
 
 // === GLOBAL FIX ===
 const NoPaddingGlobal = createGlobalStyle`
@@ -221,11 +233,7 @@ export function TecnicoLayout() {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
 
-  useEffect(() => {
-    verificarSesion();
-  }, []);
-
-  async function verificarSesion() {
+  const verificarSesion = useCallback(async () => {
     const { data } = await supabase.auth.getUser();
     if (!data?.user) {
       navigate("/admin/login", { replace: true });
@@ -239,7 +247,7 @@ export function TecnicoLayout() {
       .eq("email", data.user.email)
       .single();
 
-    if (!perfil || perfil.rol !== "tecnico") {
+    if (!perfil || normalizarRol(perfil.rol) !== "tecnico") {
       Swal.fire({
         icon: "error",
         title: "Acceso denegado",
@@ -251,7 +259,11 @@ export function TecnicoLayout() {
 
     setUser(data.user);
     setChecking(false);
-  }
+  }, [navigate]);
+
+  useEffect(() => {
+    verificarSesion();
+  }, [verificarSesion]);
 
   const logout = async () => {
     await supabase.auth.signOut();

@@ -1,4 +1,4 @@
-// src/pages/admin/Tickets.jsx
+﻿// src/pages/admin/Tickets.jsx
 import { useEffect, useState, useMemo } from "react";
 import styled from "styled-components";
 import Swal from "sweetalert2";
@@ -12,6 +12,7 @@ import {
   Phone,
   FileText,
   MessageSquare,
+  Star,
 } from "lucide-react";
 
 // === EMAILJS CONFIG ===
@@ -19,6 +20,8 @@ const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
 const EMAILJS_TEMPLATE_ASIGNACION_ID =
   import.meta.env.VITE_EMAILJS_TEMPLATE_ASIGNACION_ID;
 const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+const TICKETS_DESTACADOS_KEY = "admin_tickets_destacados_ids";
+const TICKET_DESTACADO_LEGACY_KEY = "admin_ticket_destacado_id";
 
 // === ESTILOS GENERALES ===
 const Container = styled.section`
@@ -100,6 +103,16 @@ const ActionButton = styled.button`
   &:hover {
     opacity: 0.9;
     transform: scale(1.03);
+  }
+`;
+
+const OutlineActionButton = styled(ActionButton)`
+  background: transparent;
+  color: ${({ theme }) => theme.text};
+  border: 1px solid ${({ theme }) => theme.border};
+
+  &:hover {
+    background: ${({ theme }) => theme.hover};
   }
 `;
 
@@ -324,6 +337,40 @@ const CloseTicketButton = styled(ActionButton)`
   background-color: #e74c3c;
 `;
 
+const FilterBar = styled.div`
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+`;
+
+const FilterInput = styled.input`
+  width: 100%;
+  max-width: 460px;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.border};
+  background: ${({ theme }) => theme.cardBackground};
+  color: ${({ theme }) => theme.text};
+`;
+
+const HighlightInfo = styled.div`
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid #f4c542;
+  background: rgba(244, 197, 66, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+`;
+
+const MotionDiv = motion.div;
+
 // === COMPONENTE PRINCIPAL ===
 export default function Tickets() {
   const [tab, setTab] = useState("solicitudes");
@@ -333,6 +380,9 @@ export default function Tickets() {
   const [cancelados, setCancelados] = useState([]);
 
   const [tecnicos, setTecnicos] = useState([]);
+  const [filtroTicket, setFiltroTicket] = useState("");
+  const [ticketsDestacadosIds, setTicketsDestacadosIds] = useState([]);
+  const [soloDestacado, setSoloDestacado] = useState(false);
 
   // Para DETALLES TICKET
   const [ticketSeleccionado, setTicketSeleccionado] = useState(null);
@@ -346,6 +396,48 @@ export default function Tickets() {
   useEffect(() => {
     cargarTodo();
   }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(TICKETS_DESTACADOS_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const ids = parsed
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0);
+          setTicketsDestacadosIds(Array.from(new Set(ids)));
+          return;
+        }
+      } catch {
+        // Si el JSON viene dañado, intentamos fallback legacy.
+      }
+    }
+
+    const legacy = localStorage.getItem(TICKET_DESTACADO_LEGACY_KEY);
+    const legacyId = Number(legacy);
+    if (Number.isFinite(legacyId) && legacyId > 0) {
+      setTicketsDestacadosIds([legacyId]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (ticketsDestacadosIds.length > 0) {
+      localStorage.setItem(
+        TICKETS_DESTACADOS_KEY,
+        JSON.stringify(ticketsDestacadosIds)
+      );
+    } else {
+      localStorage.removeItem(TICKETS_DESTACADOS_KEY);
+    }
+    localStorage.removeItem(TICKET_DESTACADO_LEGACY_KEY);
+  }, [ticketsDestacadosIds]);
+
+  useEffect(() => {
+    if (soloDestacado && ticketsDestacadosIds.length === 0) {
+      setSoloDestacado(false);
+    }
+  }, [soloDestacado, ticketsDestacadosIds]);
 
   async function cargarTodo() {
     obtenerTecnicos();
@@ -427,6 +519,135 @@ export default function Tickets() {
     return t.estadoFinal || t.estado_solicitud || t.estado || "Agendado";
   }
 
+  function esTicketDestacado(ticket) {
+    if (!ticket?.id || ticketsDestacadosIds.length === 0) return false;
+    return ticketsDestacadosIds.includes(Number(ticket.id));
+  }
+
+  function alternarDestacado(ticket) {
+    if (!ticket?.id) return;
+    const id = Number(ticket.id);
+    setTicketsDestacadosIds((prev) =>
+      prev.includes(id) ? prev.filter((ticketId) => ticketId !== id) : [...prev, id]
+    );
+  }
+
+  function estiloFila(ticket) {
+    if (!esTicketDestacado(ticket)) return undefined;
+    return {
+      backgroundColor: "rgba(244, 197, 66, 0.12)",
+    };
+  }
+
+  function toggleSoloDestacado() {
+    if (!soloDestacado && ticketsDestacadosIds.length === 0) {
+      Swal.fire(
+        "Sin ticket destacado",
+        "Primero destaca un ticket para usar este filtro.",
+        "info"
+      );
+      return;
+    }
+    setSoloDestacado((prev) => !prev);
+  }
+
+  async function limpiarDestacados() {
+    if (ticketsDestacadosIds.length === 0) return;
+    const result = await Swal.fire({
+      title: "Quitar destacados",
+      text: "Se quitara el marcado de todos los tickets destacados.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Quitar todos",
+      cancelButtonText: "Cancelar",
+    });
+    if (!result.isConfirmed) return;
+    setTicketsDestacadosIds([]);
+    setSoloDestacado(false);
+  }
+
+  function obtenerDocumentoTicket(ticket) {
+    if (!ticket) return { label: "Cedula/RNC", valor: "-" };
+
+    const cedula = String(ticket.cedula || "").trim();
+    const rnc = String(ticket.empresa_rnc || "").trim();
+
+    if (ticket.tipo_cliente === "empresa") {
+      return { label: "RNC", valor: rnc || "-" };
+    }
+
+    if (ticket.tipo_cliente === "persona") {
+      return { label: "Cedula", valor: cedula || "-" };
+    }
+
+    if (rnc) return { label: "RNC", valor: rnc };
+    if (cedula) return { label: "Cedula", valor: cedula };
+
+    return { label: "Cedula/RNC", valor: "-" };
+  }
+
+  function obtenerTipoInstalacion(ticket) {
+    const directo = String(ticket?.tipo_instalacion || "").trim();
+    if (directo) return directo;
+
+    // Compatibilidad con tickets viejos donde se guardo dentro de descripcion.
+    const descripcion = String(ticket?.descripcion || "");
+    const match = descripcion.match(/\[Tipo de instalacion:\s*([^\]]+)\]/i);
+    return match?.[1]?.trim() || "";
+  }
+
+  const filtroNormalizado = filtroTicket.toLowerCase().trim();
+
+  const coincideFiltroTicket = (ticket) => {
+    if (soloDestacado && !esTicketDestacado(ticket)) return false;
+    if (!filtroNormalizado) return true;
+    const documento = obtenerDocumentoTicket(ticket).valor;
+
+    return [
+      ticket.numero_caso,
+      ticket.cliente,
+      ticket.telefono,
+      ticket.email,
+      ticket.direccion,
+      ticket.ciudad,
+      ticket.sector,
+      ticket.servicio_nombre,
+      ticket.cedula,
+      ticket.empresa_rnc,
+      ticket.id,
+      documento,
+    ].some((valor) =>
+      String(valor || "")
+        .toLowerCase()
+        .includes(filtroNormalizado)
+    );
+  };
+
+  const solicitudesFiltradas = solicitudes.filter((t) => coincideFiltroTicket(t));
+  const activosFiltrados = activos.filter((t) => coincideFiltroTicket(t));
+  const finalizadosFiltrados = finalizados.filter((t) => coincideFiltroTicket(t));
+  const canceladosFiltrados = cancelados.filter((t) => coincideFiltroTicket(t));
+
+  const todosTickets = useMemo(() => {
+    const map = new Map();
+    for (const t of [...solicitudes, ...activos, ...finalizados, ...cancelados]) {
+      if (!t?.id) continue;
+      map.set(Number(t.id), t);
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0)
+    );
+  }, [solicitudes, activos, finalizados, cancelados]);
+
+  const ticketsDestacados = useMemo(
+    () => todosTickets.filter((t) => esTicketDestacado(t)),
+    [todosTickets, ticketsDestacadosIds]
+  );
+
+  const destacadosFiltrados = ticketsDestacados.filter((t) =>
+    coincideFiltroTicket(t)
+  );
+
   // === Cargar cotización ligada + detalle de equipos ===
   async function cargarCotizacionYDetalle(ticketId) {
     setCotizacionLigada(null);
@@ -447,24 +668,30 @@ export default function Tickets() {
 
     const cot = cotList[0];
 
-    const { data: det, error: errDet } = await supabase
-      .from("detalle_cotizacion")
-      .select("*")
-      .eq("cotizacion_id", cot.id);
+    const [{ data: items }, { data: detLegacy }, { data: productos }] =
+      await Promise.all([
+        supabase
+          .from("cotizacion_items")
+          .select("*")
+          .eq("cotizacion_id", cot.id),
+        supabase
+          .from("detalle_cotizacion")
+          .select("*")
+          .eq("cotizacion_id", cot.id),
+        supabase.from("productos").select("id, nombre, modelo"),
+      ]);
 
-    if (errDet || !det) {
-      setCotizacionLigada(cot);
-      setDetalleCotizacion([]);
-      return;
-    }
+    const base = items && items.length > 0 ? items : detLegacy || [];
+    const productosMap = (productos || []).reduce((acc, p) => {
+      acc[p.id] = p;
+      return acc;
+    }, {});
 
-    const { data: productos } = await supabase
-      .from("productos")
-      .select("id, nombre, modelo");
-
-    const detalleConProducto = det.map((d) => ({
+    const detalleConProducto = base.map((d, index) => ({
       ...d,
-      producto: productos?.find((p) => p.id === d.producto_id) || null,
+      id: d.id ?? `item-${index}`,
+      nombre_producto: d.nombre_producto || productosMap[d.producto_id]?.nombre || "",
+      producto: productosMap[d.producto_id] || null,
     }));
 
     setCotizacionLigada(cot);
@@ -784,6 +1011,12 @@ export default function Tickets() {
           🟥 Cancelados
         </TabButton>
         <TabButton
+          $active={tab === "destacados"}
+          onClick={() => setTab("destacados")}
+        >
+          ⭐ Destacados
+        </TabButton>
+        <TabButton
           $active={tab === "detalles"}
           onClick={() => setTab("detalles")}
         >
@@ -791,14 +1024,52 @@ export default function Tickets() {
         </TabButton>
       </Tabs>
 
+      <FilterBar>
+        <FilterInput
+          type="text"
+          value={filtroTicket}
+          onChange={(e) => setFiltroTicket(e.target.value)}
+          placeholder="Buscar por caso, cliente, telefono, correo, cedula o RNC"
+        />
+        <OutlineActionButton type="button" onClick={toggleSoloDestacado}>
+          <Star size={14} />
+          {soloDestacado ? "Mostrar todos" : "Solo destacado"}
+        </OutlineActionButton>
+      </FilterBar>
+
+      {ticketsDestacados.length > 0 && (
+        <HighlightInfo>
+          <span>
+            <strong>Tickets destacados:</strong> {ticketsDestacados.length}
+          </span>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <OutlineActionButton
+              type="button"
+              onClick={() => setTab("destacados")}
+            >
+              <MessageSquare size={14} />
+              Ver agrupados
+            </OutlineActionButton>
+            <OutlineActionButton
+              type="button"
+              onClick={limpiarDestacados}
+            >
+              <Star size={14} />
+              Quitar todos
+            </OutlineActionButton>
+          </div>
+        </HighlightInfo>
+      )}
+
       {/* SOLICITUDES NUEVAS */}
       {tab === "solicitudes" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Table>
             <thead>
               <tr>
                 <th>#Caso</th>
                 <th>Cliente</th>
+                <th>Cedula / RNC</th>
                 <th>Teléfono</th>
                 <th>Servicio</th>
                 <th>Descripción</th>
@@ -807,10 +1078,11 @@ export default function Tickets() {
               </tr>
             </thead>
             <tbody>
-              {solicitudes.map((s) => (
-                <tr key={s.id}>
-                  <td>{s.numero_caso}</td>
+              {solicitudesFiltradas.map((s) => (
+                <tr key={s.id} style={estiloFila(s)}>
+                  <td>{esTicketDestacado(s) ? "★ " : ""}{s.numero_caso}</td>
                   <td>{s.cliente}</td>
+                  <td>{obtenerDocumentoTicket(s).valor}</td>
                   <td>
                     <a
                       href={`https://wa.me/${s.telefono}`}
@@ -843,22 +1115,30 @@ export default function Tickets() {
                     >
                       <UserCog size={14} /> Asignar
                     </ActionButton>
+                    <OutlineActionButton
+                      type="button"
+                      onClick={() => alternarDestacado(s)}
+                    >
+                      <Star size={14} />
+                      {esTicketDestacado(s) ? "Quitar" : "Destacar"}
+                    </OutlineActionButton>
                   </td>
                 </tr>
               ))}
             </tbody>
           </Table>
-        </motion.div>
+        </MotionDiv>
       )}
 
       {/* ACTIVOS */}
       {tab === "activos" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Table>
             <thead>
               <tr>
                 <th>#Caso</th>
                 <th>Cliente</th>
+                <th>Cedula / RNC</th>
                 <th>Técnico</th>
                 <th>Servicio</th>
                 <th>Tarea</th>
@@ -870,10 +1150,11 @@ export default function Tickets() {
             </thead>
 
             <tbody>
-              {activos.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.numero_caso}</td>
+              {activosFiltrados.map((t) => (
+                <tr key={t.id} style={estiloFila(t)}>
+                  <td>{esTicketDestacado(t) ? "★ " : ""}{t.numero_caso}</td>
                   <td>{t.cliente}</td>
+                  <td>{obtenerDocumentoTicket(t).valor}</td>
                   <td>{t.tecnico_asignado || "Sin asignar"}</td>
                   <td>{t.servicio_nombre}</td>
                   <td>{t.tipo_tarea || "-"}</td>
@@ -884,22 +1165,30 @@ export default function Tickets() {
                     <ActionButton onClick={() => abrirDetalles(t)}>
                       <MessageSquare size={14} /> Ver detalles
                     </ActionButton>
+                    <OutlineActionButton
+                      type="button"
+                      onClick={() => alternarDestacado(t)}
+                    >
+                      <Star size={14} />
+                      {esTicketDestacado(t) ? "Quitar" : "Destacar"}
+                    </OutlineActionButton>
                   </td>
                 </tr>
               ))}
             </tbody>
           </Table>
-        </motion.div>
+        </MotionDiv>
       )}
 
       {/* FINALIZADOS */}
       {tab === "finalizados" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Table>
             <thead>
               <tr>
                 <th>#Caso</th>
                 <th>Cliente</th>
+                <th>Cedula / RNC</th>
                 <th>Servicio</th>
                 <th>Fecha</th>
                 <th>Estado</th>
@@ -908,10 +1197,11 @@ export default function Tickets() {
             </thead>
 
             <tbody>
-              {finalizados.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.numero_caso}</td>
+              {finalizadosFiltrados.map((t) => (
+                <tr key={t.id} style={estiloFila(t)}>
+                  <td>{esTicketDestacado(t) ? "★ " : ""}{t.numero_caso}</td>
                   <td>{t.cliente}</td>
+                  <td>{obtenerDocumentoTicket(t).valor}</td>
                   <td>{t.servicio_nombre}</td>
                   <td>{t.fecha_agendada || "-"}</td>
                   <td>{t.estadoFinal}</td>
@@ -919,51 +1209,122 @@ export default function Tickets() {
                     <ActionButton onClick={() => abrirDetalles(t)}>
                       <MessageSquare size={14} /> Ver detalles
                     </ActionButton>
+                    <OutlineActionButton
+                      type="button"
+                      onClick={() => alternarDestacado(t)}
+                    >
+                      <Star size={14} />
+                      {esTicketDestacado(t) ? "Quitar" : "Destacar"}
+                    </OutlineActionButton>
                   </td>
                 </tr>
               ))}
             </tbody>
           </Table>
-        </motion.div>
+        </MotionDiv>
       )}
 
       {/* CANCELADOS */}
       {tab === "cancelados" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <Table>
             <thead>
               <tr>
                 <th>#Caso</th>
                 <th>Cliente</th>
+                <th>Cedula / RNC</th>
                 <th>Servicio</th>
                 <th>Fecha</th>
                 <th>Estado</th>
+                <th>Acción</th>
               </tr>
             </thead>
 
             <tbody>
-              {cancelados.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.numero_caso}</td>
+              {canceladosFiltrados.map((t) => (
+                <tr key={t.id} style={estiloFila(t)}>
+                  <td>{esTicketDestacado(t) ? "★ " : ""}{t.numero_caso}</td>
                   <td>{t.cliente}</td>
+                  <td>{obtenerDocumentoTicket(t).valor}</td>
                   <td>{t.servicio_nombre}</td>
                   <td>{t.fecha_agendada || "-"}</td>
                   <td>{t.estadoFinal}</td>
+                  <td>
+                    <OutlineActionButton
+                      type="button"
+                      onClick={() => alternarDestacado(t)}
+                    >
+                      <Star size={14} />
+                      {esTicketDestacado(t) ? "Quitar" : "Destacar"}
+                    </OutlineActionButton>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </Table>
-        </motion.div>
+        </MotionDiv>
+      )}
+
+      {/* DESTACADOS */}
+      {tab === "destacados" && (
+        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <Table>
+            <thead>
+              <tr>
+                <th>#Caso</th>
+                <th>Cliente</th>
+                <th>Cedula / RNC</th>
+                <th>Servicio</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {destacadosFiltrados.length === 0 ? (
+                <tr>
+                  <td colSpan={7}>
+                    No hay tickets destacados con los filtros actuales.
+                  </td>
+                </tr>
+              ) : (
+                destacadosFiltrados.map((t) => (
+                  <tr key={t.id} style={estiloFila(t)}>
+                    <td>{esTicketDestacado(t) ? "★ " : ""}{t.numero_caso}</td>
+                    <td>{t.cliente}</td>
+                    <td>{obtenerDocumentoTicket(t).valor}</td>
+                    <td>{t.servicio_nombre}</td>
+                    <td>{t.fecha_agendada || "-"}</td>
+                    <td>{obtenerEstadoTicket(t)}</td>
+                    <td>
+                      <ActionButton onClick={() => abrirDetalles(t)}>
+                        <MessageSquare size={14} /> Ver detalles
+                      </ActionButton>
+                      <OutlineActionButton
+                        type="button"
+                        onClick={() => alternarDestacado(t)}
+                      >
+                        <Star size={14} />
+                        Quitar
+                      </OutlineActionButton>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </MotionDiv>
       )}
 
       {/* DETALLES DEL TICKET (ESTILO CHAT) */}
       {tab === "detalles" && ticketSeleccionado && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <DetailWrapper>
             <TicketBox>
               <TicketHeader>
                 <TicketHeaderLeft>
                   <TicketTitle>
+                    {esTicketDestacado(ticketSeleccionado) ? "★ " : ""}
                     CASE-{ticketSeleccionado.numero_caso || ticketSeleccionado.id}
                   </TicketTitle>
                   <TicketSubTitle>
@@ -1000,6 +1361,16 @@ export default function Tickets() {
                         Chat
                       </a>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => alternarDestacado(ticketSeleccionado)}
+                    >
+                      <Star size={14} />
+                      {esTicketDestacado(ticketSeleccionado)
+                        ? "Quitar destacado"
+                        : "Destacar"}
+                    </button>
                   </HeaderActions>
 
                   <button
@@ -1043,6 +1414,11 @@ export default function Tickets() {
                   </InfoRow>
 
                   <InfoRow>
+                    <span>Tipo de instalacion:</span>
+                    <span>{obtenerTipoInstalacion(ticketSeleccionado) || "-"}</span>
+                  </InfoRow>
+
+                  <InfoRow>
                     <span>Fecha agendada:</span>
                     <span>
                       {ticketSeleccionado.fecha_agendada
@@ -1071,6 +1447,33 @@ export default function Tickets() {
                   <InfoRow>
                     <span>Dirección:</span>
                     <span>{ticketSeleccionado.direccion || "-"}</span>
+                  </InfoRow>
+
+                  <InfoRow>
+                    <span>Ciudad:</span>
+                    <span>{ticketSeleccionado.ciudad || "-"}</span>
+                  </InfoRow>
+
+                  <InfoRow>
+                    <span>Sector:</span>
+                    <span>{ticketSeleccionado.sector || "-"}</span>
+                  </InfoRow>
+
+                  <InfoRow>
+                    <span>Tipo de cliente:</span>
+                    <span>{ticketSeleccionado.tipo_cliente || "-"}</span>
+                  </InfoRow>
+
+                  {ticketSeleccionado.tipo_cliente === "empresa" && (
+                    <InfoRow>
+                      <span>Empresa:</span>
+                      <span>{ticketSeleccionado.empresa_nombre || "-"}</span>
+                    </InfoRow>
+                  )}
+
+                  <InfoRow>
+                    <span>{obtenerDocumentoTicket(ticketSeleccionado).label}:</span>
+                    <span>{obtenerDocumentoTicket(ticketSeleccionado).valor}</span>
                   </InfoRow>
 
                   <SectionTitle style={{ marginTop: "1.2rem" }}>
@@ -1127,7 +1530,9 @@ export default function Tickets() {
                             detalleCotizacion.map((d) => (
                               <tr key={d.id}>
                                 <td>
-                                  {d.producto?.nombre || "Producto sin nombre"}
+                                  {d.nombre_producto ||
+                                    d.producto?.nombre ||
+                                    "Producto sin nombre"}
                                 </td>
                                 <td>{d.cantidad}</td>
                               </tr>
@@ -1219,8 +1624,9 @@ export default function Tickets() {
               </DetailContent>
             </TicketBox>
           </DetailWrapper>
-        </motion.div>
+        </MotionDiv>
       )}
     </Container>
   );
 }
+

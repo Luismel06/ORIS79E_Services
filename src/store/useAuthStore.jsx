@@ -1,12 +1,23 @@
 import { create } from "zustand";
 import { supabase } from "../supabase/supabase.config.jsx";
 
+function normalizarRol(rol = "") {
+  const limpio = String(rol)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  if (limpio === "admin" || limpio === "administrador") return "admin";
+  if (limpio === "tecnico" || limpio === "tecnica") return "tecnico";
+  return "none";
+}
+
 export const useAuthStore = create((set) => ({
   user: null,
   rol: "none",
-  loading: true, // << NEW (important)
+  loading: true,
 
-  // --- Login Google ---
   loginGoogle: async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -17,7 +28,6 @@ export const useAuthStore = create((set) => ({
     }
   },
 
-  // --- Cargar sesión al iniciar App ---
   cargarSesion: async () => {
     try {
       const { data } = await supabase.auth.getUser();
@@ -27,14 +37,12 @@ export const useAuthStore = create((set) => ({
         return;
       }
 
-      // Buscar en tu tabla usuarios
       const { data: usuarioBD } = await supabase
         .from("usuarios")
         .select("id, rol")
-        .eq("email", data.user.email)
+        .ilike("email", data.user.email)
         .single();
 
-      // Si NO existe → no tiene permisos
       if (!usuarioBD) {
         set({
           user: data.user,
@@ -44,20 +52,17 @@ export const useAuthStore = create((set) => ({
         return;
       }
 
-      // Si existe → asignar rol real
       set({
         user: data.user,
-        rol: usuarioBD.rol || "none",
+        rol: normalizarRol(usuarioBD?.rol),
         loading: false,
       });
-
     } catch (error) {
-      console.log("Error cargando sesión:", error);
+      console.log("Error cargando sesion:", error);
       set({ user: null, rol: "none", loading: false });
     }
   },
 
-  // --- Logout ---
   logout: async () => {
     await supabase.auth.signOut();
     set({ user: null, rol: "none", loading: false });

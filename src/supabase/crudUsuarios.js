@@ -1,4 +1,4 @@
-// src/supabase/crudUsuarios.js
+﻿// src/supabase/crudUsuarios.js
 import { supabase } from "./supabase.config";
 
 // 🧩 Insertar un nuevo usuario

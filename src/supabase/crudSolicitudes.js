@@ -1,4 +1,4 @@
-// 📁 supabase/crudSolicitudes.jsx
+﻿// 📁 supabase/crudSolicitudes.jsx
 import { supabase } from "./supabase.config";
 
 // 🔹 Insertar una nueva solicitud

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+﻿import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import styled from "styled-components";
 import { supabase } from "../../supabase/supabase.config.jsx";
@@ -400,16 +400,25 @@ export default function TicketTecnicoDetalle() {
       return;
     }
 
-    const { data: det, error: detError } = await supabase
-      .from("detalle_cotizacion")
-      .select("id, producto_id, cantidad, subtotal")
-      .eq("cotizacion_id", cot.id);
+    const [{ data: items, error: itemsError }, { data: detLegacy, error: detError }] =
+      await Promise.all([
+        supabase
+          .from("cotizacion_items")
+          .select("id, producto_id, nombre_producto, cantidad, precio_unitario, subtotal")
+          .eq("cotizacion_id", cot.id),
+        supabase
+          .from("detalle_cotizacion")
+          .select("id, producto_id, cantidad, subtotal")
+          .eq("cotizacion_id", cot.id),
+      ]);
 
-    if (detError) {
-      console.error("Error cargando detalle de cotización:", detError);
+    if (itemsError && detError) {
+      console.error("Error cargando detalle de cotizacion:", itemsError || detError);
       setDetalleInstalacion([]);
       return;
     }
+
+    const det = items && items.length > 0 ? items : detLegacy || [];
 
     if (!det || det.length === 0) {
       setDetalleInstalacion([]);
@@ -439,6 +448,7 @@ export default function TicketTecnicoDetalle() {
 
     const detalleConProd = (det || []).map((d) => ({
       ...d,
+      nombre_producto: d.nombre_producto || productosMap[d.producto_id]?.nombre || "",
       producto: productosMap[d.producto_id] || null,
     }));
 
@@ -569,7 +579,7 @@ export default function TicketTecnicoDetalle() {
 
     return detalleInstalacion.reduce((acc, d) => {
       const cat = (d.producto?.categoria || "").toLowerCase();
-      const nombre = (d.producto?.nombre || "").toLowerCase();
+      const nombre = (d.nombre_producto || d.producto?.nombre || "").toLowerCase();
       const esCamara =
         cat.includes("cámara") ||
         cat.includes("camara") ||
@@ -580,6 +590,15 @@ export default function TicketTecnicoDetalle() {
       return esCamara ? acc + cant : acc;
     }, 0);
   }, [detalleInstalacion]);
+
+  function obtenerTipoInstalacion(ticketData) {
+    const directo = String(ticketData?.tipo_instalacion || "").trim();
+    if (directo) return directo;
+
+    const descripcion = String(ticketData?.descripcion || "");
+    const match = descripcion.match(/\[Tipo de instalacion:\s*([^\]]+)\]/i);
+    return match?.[1]?.trim() || "";
+  }
 
   if (!ticket) {
     return (
@@ -641,6 +660,11 @@ export default function TicketTecnicoDetalle() {
             </InfoRow>
 
             <InfoRow>
+              <span>Tipo de instalacion:</span>
+              <span>{obtenerTipoInstalacion(ticket) || "-"}</span>
+            </InfoRow>
+
+            <InfoRow>
               <span>Fecha agendada:</span>
               <span>
                 {ticket.fecha_agendada
@@ -684,6 +708,16 @@ export default function TicketTecnicoDetalle() {
                 </InfoRow>
 
                 <InfoRow>
+                  <span>Ciudad:</span>
+                  <span>{ticket.ciudad || "-"}</span>
+                </InfoRow>
+
+                <InfoRow>
+                  <span>Sector:</span>
+                  <span>{ticket.sector || "-"}</span>
+                </InfoRow>
+
+                <InfoRow>
                   <span>Tipo de cliente:</span>
                   <span>{ticket.tipo_cliente || "Particular"}</span>
                 </InfoRow>
@@ -694,8 +728,13 @@ export default function TicketTecnicoDetalle() {
                 </InfoRow>
 
                 <InfoRow>
+                  <span>Cedula:</span>
+                  <span>{ticket.cedula || "-"}</span>
+                </InfoRow>
+
+                <InfoRow>
                   <span>RNC:</span>
-                  <span>{ticket.rnc || "-"}</span>
+                  <span>{ticket.empresa_rnc || "-"}</span>
                 </InfoRow>
 
                 {cotizacion && (
@@ -736,7 +775,7 @@ export default function TicketTecnicoDetalle() {
                           {detalleInstalacion.map((d) => (
                             <tr key={d.id}>
                               <td>
-                                {d.producto?.nombre || "Producto"}
+                                {d.nombre_producto || d.producto?.nombre || "Producto"}
                                 {d.producto?.modelo
                                   ? ` (${d.producto.modelo})`
                                   : ""}

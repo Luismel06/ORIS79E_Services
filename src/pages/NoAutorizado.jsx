@@ -1,4 +1,4 @@
-export default function NoAutorizado() {
+﻿export default function NoAutorizado() {
   return (
     <div
       style={{

@@ -1,4 +1,4 @@
-import styled from "styled-components";
+﻿import styled from "styled-components";
 import { Mail, Phone, MapPin, Instagram, X } from "lucide-react";
 
 const TikTokIcon = ({ size = 20 }) => (

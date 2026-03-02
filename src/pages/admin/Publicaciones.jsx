@@ -1,4 +1,4 @@
-// src/pages/admin/Publicaciones.jsx
+﻿// src/pages/admin/Publicaciones.jsx
 import { useState, useEffect } from "react";
 import styled from "styled-components";
 import Swal from "sweetalert2";

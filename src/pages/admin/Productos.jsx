@@ -1,4 +1,4 @@
-// src/pages/admin/Productos.jsx
+﻿// src/pages/admin/Productos.jsx
 import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import Swal from "sweetalert2";

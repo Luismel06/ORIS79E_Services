@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import styled from "styled-components";
 import jsPDF from "jspdf";
@@ -6,6 +6,7 @@ import autoTable from "jspdf-autotable";
 import { supabase } from "../../supabase/supabase.config.jsx";
 import { Download } from "lucide-react";
 import Swal from "sweetalert2";
+import { useAuthStore } from "../../store/useAuthStore.jsx";
 
 const Wrapper = styled.div`
   padding: 2rem;
@@ -134,6 +135,11 @@ const EMPRESA = {
   telefono: "+1 (849) 577-6011",
   email: "oriseservice394@gmail.com",
 };
+const CUENTA_BANCO_EMPRESA =
+  import.meta.env.VITE_EMPRESA_CUENTA_BANCO?.trim() || "";
+const BANCO_EMPRESA = import.meta.env.VITE_EMPRESA_BANCO?.trim() || "";
+const TITULAR_CUENTA_EMPRESA =
+  import.meta.env.VITE_EMPRESA_TITULAR_CUENTA?.trim() || "";
 
 function formatearEstado(estado) {
   if (!estado) return "Pendiente";
@@ -142,6 +148,7 @@ function formatearEstado(estado) {
 
 export default function VistaCotizacion() {
   const { id } = useParams();
+  const { user } = useAuthStore();
   const [cotizacion, setCotizacion] = useState(null);
   const [detalle, setDetalle] = useState([]);
   const [solicitud, setSolicitud] = useState(null); // 🔗 ticket / solicitud
@@ -175,19 +182,46 @@ function formatRD(value) {
 
     setCotizacion(cot || null);
 
-    // Detalle de productos
-    const { data: det } = await supabase
-      .from("detalle_cotizacion")
-      .select("*")
-      .eq("cotizacion_id", id);
+    // Leer items manuales primero; fallback a detalle legacy
+    const [{ data: items }, { data: detLegacy }, { data: productosData }] =
+      await Promise.all([
+        supabase
+          .from("cotizacion_items")
+          .select("*")
+          .eq("cotizacion_id", id),
+        supabase
+          .from("detalle_cotizacion")
+          .select("*")
+          .eq("cotizacion_id", id),
+        supabase.from("productos").select("id, nombre, precio, categoria, marca, modelo"),
+      ]);
 
-    const { data: productosData } = await supabase
-      .from("productos")
-      .select("id, nombre, precio");
+    const detalleBase = items && items.length > 0 ? items : detLegacy || [];
+    const productosMap = (productosData || []).reduce((acc, p) => {
+      acc[p.id] = p;
+      return acc;
+    }, {});
 
-    const detalleConProducto = det?.map((d) => {
-      const prod = productosData?.find((p) => p.id === d.producto_id);
-      return { ...d, producto: prod };
+    const detalleConProducto = (detalleBase || []).map((d, index) => {
+      const cantidad = Number(d.cantidad || 0);
+      const subtotal = Number(d.subtotal || 0);
+      const precioUnit =
+        d.precio_unitario != null
+          ? Number(d.precio_unitario)
+          : cantidad > 0
+          ? subtotal / cantidad
+          : 0;
+      const producto = productosMap[d.producto_id] || null;
+
+      return {
+        ...d,
+        id: d.id ?? `legacy-${index}`,
+        cantidad,
+        subtotal,
+        precio_unitario: precioUnit,
+        nombre_producto: d.nombre_producto || producto?.nombre || "-",
+        producto,
+      };
     });
 
     setDetalle(detalleConProducto || []);
@@ -200,10 +234,12 @@ function formatRD(value) {
       setEditDescuento(Number(cot.descuento || 0));
     }
 
-    const editDet = (detalleConProducto || []).map((d) => ({
-      producto_id: d.producto_id,
-      cantidad: Number(d.cantidad || 0),
-    }));
+    const editDet = (detalleConProducto || [])
+      .filter((d) => d.producto_id)
+      .map((d) => ({
+        producto_id: d.producto_id,
+        cantidad: Number(d.cantidad || 0),
+      }));
     setEditDetalle(editDet);
 
     // 🔗 Si la cotización tiene solicitud_id, cargamos la solicitud
@@ -231,10 +267,22 @@ function formatRD(value) {
   const descuentoPct = cotizacion ? Number(cotizacion.descuento || 0) : 0;
   const descuentoMonto = (base * descuentoPct) / 100;
   const total = base + itebis - descuentoMonto;
+  const tieneLineasManuales = detalle.some(
+    (d) => !d.producto_id && String(d.nombre_producto || "").trim() !== ""
+  );
 
   // Estos solo se usan en el PDF de plan 50/50
   const inicial50 = total * 0.5;
   const restante50 = total - inicial50;
+  const cuentaBanco50 = cotizacion
+    ? String(cotizacion.numero_cuenta_banco || CUENTA_BANCO_EMPRESA || "").trim()
+    : "";
+  const titularCuenta50 = cotizacion
+    ? String(cotizacion.nombre_cuenta_banco || TITULAR_CUENTA_EMPRESA || "").trim()
+    : "";
+  const bancoCuenta50 = cotizacion
+    ? String(cotizacion.banco_cuenta_banco || BANCO_EMPRESA || "").trim()
+    : "";
   // -------------------------------------------
 
   // -------------- CAMBIO DE ESTADO + STOCK -----------------
@@ -242,7 +290,7 @@ function formatRD(value) {
     if (!cotizacion) return;
 
     if (nuevoEstado === cotizacion.estado) {
-      Swal.fire("Sin cambios", "La cotización ya tiene ese estado.", "info");
+      Swal.fire("Sin cambios", "La cotizacion ya tiene ese estado.", "info");
       return;
     }
 
@@ -359,200 +407,320 @@ function formatRD(value) {
 
   // =================== PDF GENERAL (COTIZ / FACTURA / PLAN 50) ===================
   function construirPDF(logoDataUrl, tipoDoc = "cotizacion") {
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
 
-  const primary = "#0FA3B1";
-  const dark = "#333333";
-  const gray = "#555555";
-  const lightGray = "#F5F5F5";
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const marginX = 40;
+    const lineGap = 14;
+    const primary = [15, 163, 177];
+    const dark = [40, 40, 40];
+    const gray = [90, 90, 90];
 
-  const marginX = 40;
-  let y = 50;
+    const titulo =
+      tipoDoc === "factura"
+        ? "FACTURA"
+        : tipoDoc === "plan50"
+        ? "COTIZACION (PLAN 50/50)"
+        : "COTIZACION";
 
-  // ---------- ENCABEZADO EMPRESA ----------
-  if (logoDataUrl) {
-    doc.addImage(logoDataUrl, "PNG", marginX, y, 70, 70);
-  }
+    const numeroDoc = String(cotizacion?.id || "").padStart(5, "0");
+    const fechaDoc = cotizacion?.fecha ? new Date(cotizacion.fecha) : new Date();
+    const fechaDocStr = fechaDoc.toLocaleDateString("es-DO", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    const usuarioDoc = user?.email || "Administrador";
 
-  const titulo =
-    tipoDoc === "factura"
-      ? "FACTURA"
-      : tipoDoc === "orden"
-      ? "ORDEN DE COMPRA"
-      : tipoDoc === "plan50"
-      ? "PLAN DE PAGO 50 / 50"
-      : "COTIZACIÓN";
+    const clienteNombre =
+      (solicitud?.tipo_cliente === "empresa" && solicitud?.empresa_nombre) ||
+      solicitud?.cliente ||
+      cotizacion?.cliente ||
+      "-";
+    const clienteDireccion = solicitud?.direccion || "-";
+    const clienteCiudad = solicitud?.ciudad || "-";
+    const clienteSector = solicitud?.sector || "-";
+    const clienteTelefono = solicitud?.telefono || "-";
+    const clienteEmail = solicitud?.email || "-";
+    const clienteDocumentoLabel =
+      solicitud?.tipo_cliente === "empresa"
+        ? "RNC"
+        : solicitud?.tipo_cliente === "persona"
+        ? "Cedula"
+        : "RNC/Cedula";
+    const clienteDocumento =
+      solicitud?.tipo_cliente === "empresa"
+        ? solicitud?.empresa_rnc || "-"
+        : solicitud?.cedula || solicitud?.empresa_rnc || "-";
 
-  doc.setFont("Helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(dark);
-  doc.text(EMPRESA.nombre, marginX + 90, y + 10);
+    let y = 40;
 
-  doc.setFont("Helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(gray);
-  doc.text(EMPRESA.rnc, marginX + 90, y + 26);
-  doc.text(EMPRESA.direccion, marginX + 90, y + 38);
-  doc.text(`Tel: ${EMPRESA.telefono}`, marginX + 90, y + 50);
-  doc.text(`Email: ${EMPRESA.email}`, marginX + 90, y + 62);
+    if (logoDataUrl) {
+      doc.addImage(logoDataUrl, "PNG", marginX, y - 6, 58, 58);
+    }
 
-  doc.setFont("Helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(dark);
-  doc.text(titulo, 555, y + 10, { align: "right" });
+    const infoX = logoDataUrl ? marginX + 70 : marginX;
+    doc.setTextColor(...dark);
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text(EMPRESA.nombre, infoX, y + 6);
 
-  doc.setFont("Helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text(`No. ${cotizacion.id}`, 555, y + 24, { align: "right" });
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...gray);
+    doc.text(`Direccion: ${EMPRESA.direccion}`, infoX, y + 20);
+    doc.text(`Telefono: ${EMPRESA.telefono}`, infoX, y + 32);
+    doc.text(`RNC: ${EMPRESA.rnc}`, infoX, y + 44);
 
-  y += 100;
+    const rightX = pageWidth - marginX;
+    doc.setTextColor(...dark);
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(titulo, rightX, y + 6, { align: "right" });
 
-  // ---------- INFO CLIENTE ----------
-  doc.setFillColor(lightGray);
-  doc.roundedRect(marginX, y, 515, 110, 6, 6, "F");
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.text(`No. de cotizacion: ${numeroDoc}`, rightX, y + 20, {
+      align: "right",
+    });
+    doc.text(`Fecha: ${fechaDocStr}`, rightX, y + 32, { align: "right" });
+    doc.text(`Usuario: ${usuarioDoc}`, rightX, y + 44, { align: "right" });
 
-  doc.setFontSize(12);
-  doc.setTextColor(dark);
+    y += 66;
+    doc.setDrawColor(220, 220, 220);
+    doc.line(marginX, y, pageWidth - marginX, y);
 
-  let infoY = y + 20;
-  doc.text(`Cliente:`, marginX + 15, infoY);
-  doc.setFont("Helvetica", "normal");
-  doc.text(String(cotizacion.cliente), marginX + 120, infoY);
+    y += 18;
+    doc.setTextColor(...dark);
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Datos del cliente:", marginX, y);
+    y += 10;
 
-  doc.setFont("Helvetica", "bold");
-  infoY += 20;
-  doc.text(`Servicio:`, marginX + 15, infoY);
-  doc.setFont("Helvetica", "normal");
-  doc.text(String(cotizacion.servicio || "-"), marginX + 120, infoY);
-
-  infoY += 20;
-  doc.setFont("Helvetica", "bold");
-  doc.text(`Estado:`, marginX + 15, infoY);
-  doc.setFont("Helvetica", "normal");
-  doc.text(formatearEstado(cotizacion.estado), marginX + 120, infoY);
-
-  infoY += 20;
-  doc.setFont("Helvetica", "bold");
-  doc.text(`Fecha:`, marginX + 15, infoY);
-  doc.setFont("Helvetica", "normal");
-  doc.text(
-    new Date(cotizacion.fecha).toLocaleString(),
-    marginX + 120,
-    infoY
-  );
-
-  y += 130;
-
-  // ---------- TABLA DE CONCEPTOS ----------
-  const tableBody = detalle.map((d) => {
-    const cantidad = Number(d.cantidad || 0);
-    const subtotal = Number(d.subtotal || 0);
-    const precioUnit = cantidad > 0 ? subtotal / cantidad : 0;
-
-    return [
-      d.producto?.nombre || "-",
-      cantidad,
-      formatRD(precioUnit),
-      formatRD(subtotal),
+    const datosCliente = [
+      ["Nombre", clienteNombre],
+      ["Direccion", clienteDireccion],
+      ["Ciudad", clienteCiudad],
+      [clienteDocumentoLabel, clienteDocumento],
+      ["Tel", clienteTelefono],
+      ["Sector", clienteSector],
+      ["Email", clienteEmail],
     ];
-  });
 
-  if (servicioNum > 0) {
-    tableBody.push([
-      cotizacion.nombre_servicio ||
-        `Servicio: ${cotizacion.servicio || "Instalación"}`,
-      1,
-      formatRD(servicioNum),
-      formatRD(servicioNum),
+    doc.setFontSize(10);
+    for (const [label, valor] of datosCliente) {
+      y += lineGap;
+      doc.setFont("Helvetica", "bold");
+      doc.text(`${label}:`, marginX, y);
+      doc.setFont("Helvetica", "normal");
+      doc.text(String(valor || "-"), marginX + 95, y, {
+        maxWidth: pageWidth - marginX * 2 - 95,
+      });
+    }
+
+    y += 20;
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Datos de la cotizacion:", marginX, y);
+
+    const itbsRate = 0.18;
+
+    const lineas = detalle.map((d, index) => {
+      const cantidad = Number(d.cantidad || 0);
+      const subtotalBase = Number(d.subtotal || 0);
+      const precioBruto =
+        d.precio_unitario != null
+          ? Number(d.precio_unitario)
+          : cantidad > 0
+          ? subtotalBase / cantidad
+          : 0;
+      const itbsUnit = precioBruto * itbsRate;
+      const precioConItbs = precioBruto + itbsUnit;
+      const subtotalConItbs = precioConItbs * cantidad;
+      const referencia =
+        d.producto?.modelo ||
+        d.modelo ||
+        (d.producto_id ? `PROD-${d.producto_id}` : `ITEM-${index + 1}`);
+
+      return {
+        cantidad,
+        referencia,
+        descripcion: d.nombre_producto || d.producto?.nombre || "-",
+        precioBruto,
+        itbsUnit,
+        precioConItbs,
+        subtotalConItbs,
+      };
+    });
+
+    if (servicioNum > 0) {
+      const itbsServicio = servicioNum * itbsRate;
+      lineas.push({
+        cantidad: 1,
+        referencia: "SERVICIO",
+        descripcion:
+          cotizacion.nombre_servicio || cotizacion.servicio || "Servicio tecnico",
+        precioBruto: servicioNum,
+        itbsUnit: itbsServicio,
+        precioConItbs: servicioNum + itbsServicio,
+        subtotalConItbs: servicioNum + itbsServicio,
+      });
+    }
+
+    if (lineas.length === 0) {
+      lineas.push({
+        cantidad: 1,
+        referencia: "-",
+        descripcion: "Sin conceptos cargados",
+        precioBruto: 0,
+        itbsUnit: 0,
+        precioConItbs: 0,
+        subtotalConItbs: 0,
+      });
+    }
+
+    const body = lineas.map((row) => [
+      String(row.cantidad),
+      String(row.referencia),
+      String(row.descripcion),
+      formatRD(row.precioBruto),
+      formatRD(row.itbsUnit),
+      formatRD(row.precioConItbs),
+      formatRD(row.subtotalConItbs),
     ]);
+
+    autoTable(doc, {
+      startY: y + 8,
+      head: [
+        [
+          "Cantidad",
+          "Referencia",
+          "Descripcion",
+          "Precio Bruto",
+          "ITBS",
+          "Precio con ITBS",
+          "Sub Total",
+        ],
+      ],
+      body,
+      theme: "grid",
+      styles: {
+        fontSize: 8.8,
+        cellPadding: 4,
+      },
+      headStyles: {
+        fillColor: primary,
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      columnStyles: {
+        0: { cellWidth: 50, halign: "center" },
+        1: { cellWidth: 72 },
+        2: { cellWidth: 150 },
+        3: { cellWidth: 70, halign: "right" },
+        4: { cellWidth: 60, halign: "right" },
+        5: { cellWidth: 75, halign: "right" },
+        6: { cellWidth: 55, halign: "right" },
+      },
+    });
+
+    const subtotalBruto = lineas.reduce(
+      (acc, row) => acc + row.precioBruto * row.cantidad,
+      0
+    );
+    const totalItbs = lineas.reduce(
+      (acc, row) => acc + row.itbsUnit * row.cantidad,
+      0
+    );
+    const descuentoLocal = (subtotalBruto * descuentoPct) / 100;
+    const totalDocumento = subtotalBruto + totalItbs - descuentoLocal;
+
+    let resumeY = doc.lastAutoTable.finalY + 16;
+    if (resumeY > pageHeight - 220) {
+      doc.addPage();
+      resumeY = 60;
+    }
+
+    const boxX = pageWidth - 260;
+    const boxWidth = 220;
+    const boxHeight = tipoDoc === "plan50" ? 170 : 100;
+    doc.setDrawColor(210, 210, 210);
+    doc.roundedRect(boxX, resumeY, boxWidth, boxHeight, 6, 6, "S");
+
+    let ty = resumeY + 18;
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(9.5);
+
+    doc.text("Subtotal:", boxX + 10, ty);
+    doc.text(formatRD(subtotalBruto), boxX + boxWidth - 10, ty, { align: "right" });
+    ty += 16;
+
+    doc.text("ITBS:", boxX + 10, ty);
+    doc.text(formatRD(totalItbs), boxX + boxWidth - 10, ty, { align: "right" });
+    ty += 16;
+
+    doc.text(`Descuento (${descuentoPct}%):`, boxX + 10, ty);
+    doc.text(formatRD(descuentoLocal), boxX + boxWidth - 10, ty, { align: "right" });
+    ty += 16;
+
+    doc.setFontSize(11.5);
+    doc.setTextColor(...primary);
+    doc.text("TOTAL:", boxX + 10, ty);
+    doc.text(formatRD(totalDocumento), boxX + boxWidth - 10, ty, {
+      align: "right",
+    });
+
+    if (tipoDoc === "plan50") {
+      const inicial = totalDocumento * 0.5;
+      const restante = totalDocumento - inicial;
+
+      doc.setTextColor(...dark);
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(9);
+
+      ty += 18;
+      doc.text(`Inicial 50%: ${formatRD(inicial)}`, boxX + 10, ty);
+      ty += 14;
+      doc.text(`Restante 50%: ${formatRD(restante)}`, boxX + 10, ty);
+      ty += 14;
+      doc.text(`Banco: ${bancoCuenta50 || "-"}`, boxX + 10, ty, {
+        maxWidth: boxWidth - 20,
+      });
+      ty += 14;
+      doc.text(`Titular: ${titularCuenta50 || "-"}`, boxX + 10, ty, {
+        maxWidth: boxWidth - 20,
+      });
+      ty += 14;
+      doc.text(`Cuenta: ${cuentaBanco50 || "-"}`, boxX + 10, ty, {
+        maxWidth: boxWidth - 20,
+      });
+    }
+
+    let firmaY = resumeY + boxHeight + 40;
+    if (firmaY > pageHeight - 80) {
+      doc.addPage();
+      firmaY = 90;
+    }
+
+    doc.setDrawColor(0, 0, 0);
+    doc.line(marginX, firmaY, marginX + 220, firmaY);
+    doc.setTextColor(...gray);
+    doc.setFont("Helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.text("Firma del cliente", marginX + 70, firmaY + 14);
+
+    doc.text(`Telefono: ${EMPRESA.telefono}`, marginX, pageHeight - 30);
+    doc.text(`RNC: ${EMPRESA.rnc}`, pageWidth - marginX, pageHeight - 30, {
+      align: "right",
+    });
+
+    return doc;
   }
-
-  autoTable(doc, {
-    startY: y,
-    head: [["Concepto", "Cant.", "Precio", "Subtotal"]],
-    body: tableBody,
-    theme: "striped",
-    styles: {
-      fontSize: 11,
-      cellPadding: 6,
-    },
-    headStyles: {
-      fillColor: primary,
-      textColor: "#FFFFFF",
-      fontStyle: "bold",
-    },
-    alternateRowStyles: {
-      fillColor: "#f0f8f8",
-    },
-  });
-
-  const tableEnd = doc.lastAutoTable.finalY + 20;
-
-  // ---------- RESUMEN DE TOTALES ----------
-  const boxHeight = tipoDoc === "plan50" ? 170 : 130;
-
-  doc.setFillColor("#FFFFFF");
-  doc.roundedRect(marginX, tableEnd, 515, boxHeight, 6, 6, "S");
-
-  doc.setFont("Helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(dark);
-
-  let ty = tableEnd + 25;
-
-  doc.text("Subtotal (antes de ITBIS):", marginX + 20, ty);
-  doc.text(formatRD(base), marginX + 420, ty, { align: "right" });
-
-  ty += 20;
-  doc.text("ITBIS (18%):", marginX + 20, ty);
-  doc.text(formatRD(itebis), marginX + 420, ty, { align: "right" });
-
-  ty += 20;
-  doc.text("Descuento:", marginX + 20, ty);
-  doc.text(
-    `${formatRD(descuentoMonto)} (${descuentoPct}%)`,
-    marginX + 420,
-    ty,
-    { align: "right" }
-  );
-
-  if (tipoDoc === "plan50") {
-    ty += 20;
-    doc.text("Inicial (50%):", marginX + 20, ty);
-    doc.text(formatRD(inicial50), marginX + 420, ty, { align: "right" });
-
-    ty += 20;
-    doc.text("Restante (50%):", marginX + 20, ty);
-    doc.text(formatRD(restante50), marginX + 420, ty, { align: "right" });
-  }
-
-  ty += 30;
-  doc.setFontSize(16);
-  doc.setTextColor(primary);
-  doc.text("TOTAL:", marginX + 20, ty);
-  doc.text(formatRD(total), marginX + 420, ty, { align: "right" });
-
-  // ---------- FIRMA ----------
-  const firmaY = ty + 60;
-  doc.setDrawColor("#000000");
-  doc.line(marginX + 50, firmaY, marginX + 300, firmaY);
-  doc.setFontSize(11);
-  doc.setTextColor(gray);
-  doc.text("Firma del cliente", marginX + 90, firmaY + 15);
-
-  // ---------- PIE ----------
-  doc.setFontSize(10);
-  doc.setTextColor(gray);
-  doc.text("Gracias por preferir ORIS79E Services.", marginX, 750);
-  doc.text(`WhatsApp: ${EMPRESA.telefono}`, marginX, 765);
-  doc.text(`Email: ${EMPRESA.email}`, marginX, 780);
-
-  return doc;
-}
 
 
   // =============== PDF ESPECIAL: ORDEN DE COMPRA ==================
-  function construirOrdenCompraPDF(logoDataUrl) {
+  function construirOrdenCompraPDF() {
     const doc = new jsPDF("p", "pt", "a4");
 
     const marginX = 40;
@@ -611,8 +779,10 @@ const clienteNombre =
   "-";
 
 const clienteRnc =
-  (solicitud?.tipo_cliente === "empresa" &&
-    solicitud?.empresa_rnc) || "-";
+  (solicitud?.tipo_cliente === "empresa" && solicitud?.empresa_rnc) ||
+  solicitud?.cedula ||
+  solicitud?.empresa_rnc ||
+  "-";
 
 const clienteDireccion = solicitud?.direccion || "-";
 const clienteTelefono = solicitud?.telefono || "-";
@@ -647,7 +817,7 @@ const clienteLines = [
 
       return [
         `#${d.producto_id || index + 1}`,
-        d.producto?.nombre || "-",
+        d.nombre_producto || d.producto?.nombre || "-",
         cantidad,
         formatMoney(unit),
         formatMoney(subtotal),
@@ -803,6 +973,14 @@ const clienteLines = [
 
   async function guardarEdicion() {
     if (!cotizacion) return;
+    if (tieneLineasManuales) {
+      Swal.fire(
+        "Edicion limitada",
+        "Esta cotizacion tiene lineas manuales. Editala desde la pantalla de creacion para evitar perder datos.",
+        "warning"
+      );
+      return;
+    }
 
     if (cotizacion.estado === "aceptada") {
       Swal.fire(
@@ -856,7 +1034,9 @@ const clienteLines = [
 
       detallesAInsertar.push({
         producto_id: item.producto_id,
+        nombre_producto: prod?.nombre || "Producto",
         cantidad: cant,
+        precio_unitario: price,
         subtotal: sub,
       });
     }
@@ -894,13 +1074,14 @@ const clienteLines = [
       return;
     }
 
-    const { error: errDelete } = await supabase
-      .from("detalle_cotizacion")
-      .delete()
-      .eq("cotizacion_id", id);
+    const [{ error: errDeleteItems }, { error: errDeleteLegacy }] =
+      await Promise.all([
+        supabase.from("cotizacion_items").delete().eq("cotizacion_id", id),
+        supabase.from("detalle_cotizacion").delete().eq("cotizacion_id", id),
+      ]);
 
-    if (errDelete) {
-      console.error(errDelete);
+    if (errDeleteItems || errDeleteLegacy) {
+      console.error(errDeleteItems || errDeleteLegacy);
       Swal.fire(
         "Error",
         "No se pudo limpiar el detalle anterior.",
@@ -910,8 +1091,8 @@ const clienteLines = [
     }
 
     if (detallesAInsertar.length > 0) {
-      const { error: errInsert } = await supabase
-        .from("detalle_cotizacion")
+      const { error: errInsertItems } = await supabase
+        .from("cotizacion_items")
         .insert(
           detallesAInsertar.map((d) => ({
             cotizacion_id: Number(id),
@@ -919,20 +1100,46 @@ const clienteLines = [
           }))
         );
 
-      if (errInsert) {
-        console.error(errInsert);
+      if (errInsertItems) {
+        console.error(errInsertItems);
         Swal.fire(
           "Error",
-          "No se pudo guardar el nuevo detalle de la cotización.",
+          "No se pudo guardar el nuevo detalle de la cotizacion.",
           "error"
         );
         return;
       }
+
+      const detalleLegacy = detallesAInsertar
+        .filter((d) => d.producto_id)
+        .map((d) => ({
+          cotizacion_id: Number(id),
+          producto_id: d.producto_id,
+          cantidad: d.cantidad,
+          subtotal: d.subtotal,
+        }));
+
+      if (detalleLegacy.length > 0) {
+        const { error: errInsertLegacy } = await supabase
+          .from("detalle_cotizacion")
+          .insert(detalleLegacy);
+
+        if (errInsertLegacy) {
+          console.error(errInsertLegacy);
+          Swal.fire(
+            "Error",
+            "La cotizacion se actualizo, pero fallo la sincronizacion con detalle legacy.",
+            "warning"
+          );
+        }
+      }
     }
 
-    Swal.fire("Cambios guardados", "La cotización fue actualizada.", "success");
+    Swal.fire("Cambios guardados", "La cotizacion fue actualizada.", "success");
     setEditMode(false);
     fetchCotizacion();
+    return;
+
   }
 
   // =================================================
@@ -942,10 +1149,10 @@ const clienteLines = [
       <Card>
         <Title>ORIS79E SERVICES</Title>
         <p style={{ textAlign: "center", opacity: 0.8 }}>
-          {formatearEstado(cotizacion.estado)} — #{cotizacion.id}
+          {formatearEstado(cotizacion.estado)} - #{cotizacion.id}
         </p>
 
-        <SectionTitle>Información del Cliente</SectionTitle>
+        <SectionTitle>Informacion del Cliente</SectionTitle>
 
         <InfoRow>
           <span>
@@ -976,7 +1183,7 @@ const clienteLines = [
           </span>
           <span>
             <EstadoBadge estado={cotizacion.estado || "pendiente"}>
-              ● {formatearEstado(cotizacion.estado)}
+              {formatearEstado(cotizacion.estado)}
             </EstadoBadge>
           </span>
         </InfoRow>
@@ -1002,7 +1209,7 @@ const clienteLines = [
               fontWeight: 600,
             }}
           >
-            ✔ Aceptar
+            Aceptar
           </button>
 
           <button
@@ -1017,7 +1224,7 @@ const clienteLines = [
               fontWeight: 600,
             }}
           >
-            ✖ Rechazar
+            Rechazar
           </button>
 
           <button
@@ -1032,11 +1239,21 @@ const clienteLines = [
               fontWeight: 600,
             }}
           >
-            🕒 Pendiente
+            Pendiente
           </button>
 
           <button
-            onClick={() => setEditMode((prev) => !prev)}
+            onClick={() => {
+              if (!editMode && tieneLineasManuales) {
+                Swal.fire(
+                  "Edicion limitada",
+                  "Esta cotizacion usa conceptos manuales. Por ahora la edicion se hace desde la pantalla de creacion.",
+                  "info"
+                );
+                return;
+              }
+              setEditMode((prev) => !prev);
+            }}
             style={{
               background: "#00bcd4",
               color: "white",
@@ -1047,7 +1264,7 @@ const clienteLines = [
               fontWeight: 600,
             }}
           >
-            ✏️ {editMode ? "Cancelar edición" : "Editar cotización"}
+            {editMode ? "Cancelar edicion" : "Editar cotizacion"}
           </button>
         </div>
 
@@ -1057,6 +1274,33 @@ const clienteLines = [
           </span>
           <span>{new Date(cotizacion.fecha).toLocaleString()}</span>
         </InfoRow>
+
+        {cotizacion.usa_anticipo && (
+          <InfoRow>
+            <span>
+              <Strong>Banco 50/50:</Strong>
+            </span>
+            <span>{bancoCuenta50 || "-"}</span>
+          </InfoRow>
+        )}
+
+        {cotizacion.usa_anticipo && (
+          <InfoRow>
+            <span>
+              <Strong>Titular 50/50:</Strong>
+            </span>
+            <span>{titularCuenta50 || "-"}</span>
+          </InfoRow>
+        )}
+
+        {cotizacion.usa_anticipo && (
+          <InfoRow>
+            <span>
+              <Strong>Cuenta 50/50:</Strong>
+            </span>
+            <span>{cuentaBanco50 || "-"}</span>
+          </InfoRow>
+        )}
 
         <SectionTitle>Conceptos Cotizados</SectionTitle>
 
@@ -1077,7 +1321,7 @@ const clienteLines = [
 
               return (
                 <tr key={i}>
-                  <td>{d.producto?.nombre || "-"}</td>
+                  <td>{d.nombre_producto || d.producto?.nombre || "-"}</td>
                   <td>{cantidad}</td>
                   <td>RD${precioUnit.toFixed(2)}</td>
                   <td>RD${subtotal.toFixed(2)}</td>
@@ -1278,6 +1522,31 @@ const clienteLines = [
               RD${descuentoMonto.toFixed(2)} ({descuentoPct}%)
             </Strong>
           </TotalRow>
+
+          {cotizacion.usa_anticipo && (
+            <>
+              <TotalRow>
+                <span>Inicial (50%):</span>
+                <Strong>RD${inicial50.toFixed(2)}</Strong>
+              </TotalRow>
+              <TotalRow>
+                <span>Restante (50%):</span>
+                <Strong>RD${restante50.toFixed(2)}</Strong>
+              </TotalRow>
+              <TotalRow>
+                <span>Banco:</span>
+                <Strong>{bancoCuenta50 || "-"}</Strong>
+              </TotalRow>
+              <TotalRow>
+                <span>Titular:</span>
+                <Strong>{titularCuenta50 || "-"}</Strong>
+              </TotalRow>
+              <TotalRow>
+                <span>Cuenta:</span>
+                <Strong>{cuentaBanco50 || "-"}</Strong>
+              </TotalRow>
+            </>
+          )}
 
           <TotalRow>
             <span style={{ fontSize: "1.2rem" }}>TOTAL:</span>

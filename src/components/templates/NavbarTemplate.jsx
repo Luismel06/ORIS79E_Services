@@ -1,4 +1,4 @@
-import styled from "styled-components";
+﻿import styled from "styled-components";
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Menu, X, Moon, Sun } from "lucide-react";
@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const NavWrapper = styled.nav`
   width: 100%;
-  background-color: ${({ theme }) => theme.navBackground};
+  background-color: #8fcdf4;
   color: ${({ theme }) => theme.text};
   display: flex;
   justify-content: space-between;

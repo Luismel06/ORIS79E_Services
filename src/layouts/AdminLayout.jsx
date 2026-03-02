@@ -21,6 +21,18 @@ import logo from "../assets/logo.png";
 import { DollarSign } from "lucide-react";
 import { useTheme } from "../context/ThemeContext"; // ✅ Usa el hook correcto
 
+function normalizarRol(rol = "") {
+  const limpio = String(rol)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  if (limpio === "admin" || limpio === "administrador") return "admin";
+  if (limpio === "tecnico" || limpio === "tecnica") return "tecnico";
+  return "none";
+}
+
 const NoPaddingGlobal = createGlobalStyle`
   body, html {
     margin: 0 !important;
@@ -235,15 +247,16 @@ export function AdminLayout() {
 
       if (perfilError || !perfil) {
         await supabase.from("usuarios").insert([{ email: userEmail, rol: "tecnico" }]);
-        navigate("/tecnico", { replace: true });
+        navigate("/tecnico/tickets", { replace: true });
         return;
       }
 
-      if (perfil.rol === "admin") {
+      const rol = normalizarRol(perfil.rol);
+      if (rol === "admin") {
         setUser(data.user);
         setCheckingAuth(false);
-      } else if (perfil.rol === "tecnico") {
-        navigate("/tecnico", { replace: true });
+      } else if (rol === "tecnico") {
+        navigate("/tecnico/tickets", { replace: true });
         return;
       } else {
         await Swal.fire({

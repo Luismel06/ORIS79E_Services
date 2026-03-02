@@ -1,4 +1,4 @@
-import { supabase } from "./supabase.config";
+﻿import { supabase } from "./supabase.config";
 
 // Obtener publicaciones con sus imágenes
 export async function mostrarPublicaciones() {

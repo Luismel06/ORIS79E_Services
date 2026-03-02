@@ -1,12 +1,26 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { motion, AnimatePresence } from "framer-motion";
 import Swal from "sweetalert2";
 import emailjs from "emailjs-com";
 import { supabase } from "../../supabase/supabase.config";
 import { insertarSolicitud } from "../../supabase/crudSolicitudes";
+import {
+  formatearCedula,
+  formatearRnc,
+  soloDigitos,
+  validarCedulaDominicana,
+  validarRncDominicano,
+} from "../../utils/validacionesRD";
 
-// 🎨 === ESTILOS ===
+const EMAILJS_SERVICE_ID =
+  import.meta.env.VITE_EMAILJS_SERVICE_ID || "service_kfvhwxq";
+const EMAILJS_TEMPLATE_ID =
+  import.meta.env.VITE_EMAILJS_TEMPLATE_ID || "template_iy48pw3";
+const EMAILJS_PUBLIC_KEY =
+  import.meta.env.VITE_EMAILJS_PUBLIC_KEY || "yoOeYAk8XPOIvEhbf";
+
+// === ESTILOS ===
 const Container = styled.section`
   width: 100%;
   min-height: 100vh;
@@ -93,7 +107,7 @@ const CaseStatusTag = styled.span`
       ? "rgba(46, 204, 113, 0.18)"
       : $estado === "En progreso" || $estado === "En proceso"
       ? "rgba(26, 188, 156, 0.18)"
-      : $estado === "Requiere reprogramación"
+      : $estado === "Requiere reprogramacion"
       ? "rgba(243, 156, 18, 0.18)"
       : $estado === "Cliente no se encontraba" ||
         $estado === "Cancelado"
@@ -104,7 +118,7 @@ const CaseStatusTag = styled.span`
       ? "#27ae60"
       : $estado === "En progreso" || $estado === "En proceso"
       ? "#16a085"
-      : $estado === "Requiere reprogramación"
+      : $estado === "Requiere reprogramacion"
       ? "#e67e22"
       : $estado === "Cliente no se encontraba" ||
         $estado === "Cancelado"
@@ -253,63 +267,95 @@ const TipoClienteRow = styled.div`
   }
 `;
 
-/* ---- Catálogo de productos ---- */
-const ProductsWrapper = styled.div`
+const HelpText = styled.p`
+  margin: -0.35rem 0 0.1rem;
+  font-size: 0.8rem;
+  opacity: 0.75;
+`;
+
+// === COMPONENTE PRINCIPAL ===
+const BrandsWrapper = styled.div`
   text-align: left;
 `;
 
-const FiltersRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8rem;
-  margin-bottom: 1rem;
-`;
-
-const SelectFilter = styled.select`
-  padding: 0.6rem 0.8rem;
-  border-radius: 8px;
-  border: 1px solid ${({ theme }) => theme.border};
-  background-color: ${({ theme }) => theme.cardBackground};
-  color: ${({ theme }) => theme.text};
-  font-size: 0.9rem;
-`;
-
-const ProductGrid = styled.div`
+const BrandsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 1rem;
+  margin-top: 0.8rem;
 `;
 
-const ProductCard = styled.div`
-  border-radius: 10px;
+const BrandCard = styled.div`
   border: 1px solid ${({ theme }) => theme.border};
-  padding: 1rem;
-  background-color: ${({ theme }) => theme.background};
-  text-align: left;
-  font-size: 0.9rem;
+  border-radius: 12px;
+  background: ${({ theme }) => theme.background};
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
 `;
 
-const ProductTitle = styled.h4`
-  margin: 0 0 0.2rem;
-  color: ${({ theme }) => theme.accent};
+const BrandLogo = styled.div`
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  border: 1px solid ${({ theme }) => theme.border};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${({ theme }) => theme.cardBackground};
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 0.55rem;
+  }
 `;
 
-const ProductTag = styled.span`
-  display: inline-block;
-  font-size: 0.75rem;
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  background: ${({ theme }) => theme.inputBackground};
-  margin-right: 0.3rem;
-  margin-bottom: 0.2rem;
-`;
-
-const PriceText = styled.div`
-  margin-top: 0.4rem;
+const BrandFallback = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
+  font-size: 1.05rem;
+  color: ${({ theme }) => theme.text};
 `;
 
-// 🎯 === COMPONENTE PRINCIPAL ===
+const BrandName = styled.h4`
+  margin: 0;
+  font-size: 0.95rem;
+  text-align: center;
+`;
+
+function normalizarMarca(valor = "") {
+  return valor.trim().replace(/\s+/g, " ").toUpperCase();
+}
+
+function inicialesMarca(nombre = "") {
+  const parts = nombre.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "M";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+function normalizarTexto(valor = "") {
+  return valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function esServicioInstalacionRedes(nombreServicio = "") {
+  const txt = normalizarTexto(nombreServicio);
+  return txt.includes("instalacion de redes") || (txt.includes("instalacion") && txt.includes("red"));
+}
+
 export default function Servicios() {
   const [tab, setTab] = useState("disponibles");
   const [servicios, setServicios] = useState([]);
@@ -319,22 +365,20 @@ export default function Servicios() {
 
   // productos
   const [productos, setProductos] = useState([]);
-  const [loadingProductos, setLoadingProductos] = useState(false);
-  const [categoriaFiltro, setCategoriaFiltro] = useState("");
-  const [marcaFiltro, setMarcaFiltro] = useState("");
+  const [marcasConfig, setMarcasConfig] = useState([]);
+  const [loadingMarcas, setLoadingMarcas] = useState(false);
 
   // consulta de caso
   const [caseNumero, setCaseNumero] = useState("");
   const [caseResult, setCaseResult] = useState(null);
   const [caseLoading, setCaseLoading] = useState(false);
-
-  // 🔹 Cargar servicios desde Supabase
+  // Cargar servicios desde Supabase
   useEffect(() => {
     const fetchServicios = async () => {
       setLoading(true);
       const { data, error } = await supabase.from("servicios").select("*");
       if (error) {
-        console.error("❌ Error al cargar servicios:", error);
+        console.error("Error al cargar servicios:", error);
       } else {
         setServicios(data || []);
       }
@@ -342,35 +386,74 @@ export default function Servicios() {
     };
     fetchServicios();
   }, []);
-
-  // 🔹 Cargar productos catálogo
+  // Cargar productos catalogo
   useEffect(() => {
     const fetchProductos = async () => {
-      setLoadingProductos(true);
       const { data, error } = await supabase
         .from("productos")
-        .select("id, nombre, categoria, marca, modelo, proveedor, precio");
+        .select("id, marca, proveedor");
       if (error) {
-        console.error("❌ Error al cargar productos:", error);
+        console.error("Error al cargar productos:", error);
       } else {
         setProductos(data || []);
       }
-      setLoadingProductos(false);
     };
     fetchProductos();
   }, []);
 
-  // 🔄 Alternar formulario
+  useEffect(() => {
+    const fetchMarcas = async () => {
+      setLoadingMarcas(true);
+      const { data, error } = await supabase
+        .from("marcas")
+        .select("id, nombre, logo_url, activa, orden")
+        .order("orden", { ascending: true })
+        .order("nombre", { ascending: true });
+
+      if (error) {
+        if (error.code !== "PGRST205") {
+          console.error("Error al cargar marcas:", error);
+        }
+        setMarcasConfig([]);
+      } else {
+        setMarcasConfig((data || []).filter((m) => m.activa !== false));
+      }
+      setLoadingMarcas(false);
+    };
+
+    fetchMarcas();
+  }, []);
+
+  const marcasDesdeProductos = useMemo(() => {
+    const map = new Map();
+    for (const p of productos || []) {
+      const base = (p.marca || p.proveedor || "").trim();
+      if (!base) continue;
+      const key = normalizarMarca(base);
+      if (!map.has(key)) {
+        map.set(key, {
+          id: `prod-${key}`,
+          nombre: base,
+          logo_url: null,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.nombre.localeCompare(b.nombre)
+    );
+  }, [productos]);
+
+  const marcasVisibles =
+    marcasConfig.length > 0 ? marcasConfig : marcasDesdeProductos;
+  // Alternar formulario
   const toggleFormulario = (id) => {
     setServicioSeleccionado(servicioSeleccionado === id ? null : id);
     setTipoCliente("persona"); // reset al abrir/cerrar
   };
-
-  // 🧾 Generar número de caso único
+  // Generar numero de caso unico
   const generarNumeroCaso = () =>
     "CASE-" + Math.floor(100000 + Math.random() * 900000);
-
-  // ✉️ Enviar correo de confirmación
+  // Enviar correo de confirmacion
   const enviarCorreoConfirmacion = async (
     nombre,
     email,
@@ -379,48 +462,57 @@ export default function Servicios() {
   ) => {
     try {
       await emailjs.send(
-        "service_kfvhwxq",
-        "template_iy48pw3",
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
         {
           nombre,
           email,
           numero_caso,
           servicio,
         },
-        "yoOeYAk8XPOIvEhbf"
+        EMAILJS_PUBLIC_KEY
       );
-      console.log("✅ Correo enviado correctamente");
     } catch (error) {
-      console.error("❌ Error al enviar correo:", error);
+      console.error("Error al enviar correo:", error);
     }
   };
 
-  // 🚀 Enviar solicitud a Supabase
+  // Enviar solicitud a Supabase
   const handleSubmit = async (e, s) => {
     e.preventDefault();
+    const form = e.currentTarget;
     const numero_caso = generarNumeroCaso();
+    const requiereTipoInstalacion = esServicioInstalacionRedes(s?.nombre || "");
 
-    const cliente = e.target.cliente.value.trim();
-    const email = e.target.email.value.trim();
-    const telefono = e.target.telefono.value.trim();
-    const descripcion = e.target.descripcion.value.trim();
-    const direccion = e.target.direccion.value.trim();
-    const tipo_cliente = e.target.tipo_cliente.value; // persona | empresa
+    const cliente = form.cliente.value.trim();
+    const email = form.email.value.trim();
+    const telefono = form.telefono.value.trim();
+    const descripcion = form.descripcion.value.trim();
+    const tipoInstalacion = requiereTipoInstalacion
+      ? (form.tipo_instalacion?.value || "").trim()
+      : "";
+    const direccion = form.direccion.value.trim();
+    const ciudad = form.ciudad.value.trim();
+    const sector = form.sector.value.trim();
+    const tipo_cliente = form.tipo_cliente.value;
 
-    const empresa_nombre =
-      tipo_cliente === "empresa"
-        ? e.target.empresa_nombre.value.trim()
+    const cedula =
+      tipo_cliente === "persona"
+        ? soloDigitos(form.cedula.value.trim())
         : null;
+    const empresa_nombre =
+      tipo_cliente === "empresa" ? form.empresa_nombre.value.trim() : null;
     const empresa_rnc =
-      tipo_cliente === "empresa" ? e.target.empresa_rnc.value.trim() : null;
+      tipo_cliente === "empresa"
+        ? soloDigitos(form.empresa_rnc.value.trim())
+        : null;
 
-    // ✅ Validar formato del email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       Swal.fire({
         icon: "warning",
-        title: "Correo electrónico no válido",
-        text: "Por favor, introduce un correo electrónico válido (ejemplo@dominio.com).",
+        title: "Correo electronico no valido",
+        text: "Introduce un correo valido (ejemplo@dominio.com).",
         confirmButtonColor: "#00bcd4",
       });
       return;
@@ -429,11 +521,73 @@ export default function Servicios() {
     if (!direccion) {
       Swal.fire({
         icon: "warning",
-        title: "Dirección requerida",
-        text: "Por favor, indica la dirección donde se realizará el servicio.",
+        title: "Direccion requerida",
+        text: "Indica la direccion donde se realizara el servicio.",
         confirmButtonColor: "#00bcd4",
       });
       return;
+    }
+
+    if (!ciudad) {
+      Swal.fire({
+        icon: "warning",
+        title: "Ciudad requerida",
+        text: "Indica la ciudad donde se realizara el servicio.",
+        confirmButtonColor: "#00bcd4",
+      });
+      return;
+    }
+
+    if (!sector) {
+      Swal.fire({
+        icon: "warning",
+        title: "Sector requerido",
+        text: "Indica el sector donde se realizara el servicio.",
+        confirmButtonColor: "#00bcd4",
+      });
+      return;
+    }
+
+    if (requiereTipoInstalacion && !tipoInstalacion) {
+      Swal.fire({
+        icon: "warning",
+        title: "Tipo de instalacion requerido",
+        text: "Selecciona el tipo de instalacion que deseas.",
+        confirmButtonColor: "#00bcd4",
+      });
+      return;
+    }
+
+    if (tipo_cliente === "persona" && !validarCedulaDominicana(cedula)) {
+      Swal.fire({
+        icon: "warning",
+        title: "Cedula invalida",
+        text: "La cedula ingresada no es valida para Republica Dominicana.",
+        confirmButtonColor: "#00bcd4",
+      });
+      return;
+    }
+
+    if (tipo_cliente === "empresa") {
+      if (!empresa_nombre) {
+        Swal.fire({
+          icon: "warning",
+          title: "Empresa requerida",
+          text: "Debes ingresar el nombre o razon social.",
+          confirmButtonColor: "#00bcd4",
+        });
+        return;
+      }
+
+      if (!validarRncDominicano(empresa_rnc)) {
+        Swal.fire({
+          icon: "warning",
+          title: "RNC invalido",
+          text: "El RNC ingresado no es valido para Republica Dominicana.",
+          confirmButtonColor: "#00bcd4",
+        });
+        return;
+      }
     }
 
     const nuevaSolicitud = {
@@ -441,55 +595,103 @@ export default function Servicios() {
       email,
       telefono,
       descripcion,
+      tipo_instalacion: requiereTipoInstalacion ? tipoInstalacion : null,
       direccion,
+      ciudad,
+      sector,
       servicio_id: s.id,
       estado: "Solicitud enviada",
       tecnico_asignado: "",
       chat_link: "",
       numero_caso,
       tipo_cliente,
+      cedula: tipo_cliente === "persona" ? cedula : null,
       empresa_nombre: tipo_cliente === "empresa" ? empresa_nombre : null,
       empresa_rnc: tipo_cliente === "empresa" ? empresa_rnc : null,
     };
 
     try {
-      await insertarSolicitud(nuevaSolicitud);
+      let payload = { ...nuevaSolicitud };
+      const columnasRemovidas = [];
+      const columnasCompat = ["cedula", "ciudad", "sector", "tipo_instalacion"];
+
+      for (let intento = 0; intento <= columnasCompat.length; intento++) {
+        try {
+          await insertarSolicitud(payload);
+          break;
+        } catch (errorInsert) {
+          const msg = `${errorInsert?.message || ""} ${
+            errorInsert?.details || ""
+          }`.toLowerCase();
+
+          if (!msg.includes("column")) {
+            throw errorInsert;
+          }
+
+          const faltante = columnasCompat.find(
+            (col) =>
+              msg.includes(col) &&
+              Object.prototype.hasOwnProperty.call(payload, col)
+          );
+
+          if (!faltante) {
+            throw errorInsert;
+          }
+
+          delete payload[faltante];
+          columnasRemovidas.push(faltante);
+
+          if (intento === columnasCompat.length) {
+            throw errorInsert;
+          }
+        }
+      }
 
       await enviarCorreoConfirmacion(cliente, email, numero_caso, s.nombre);
+
+      if (columnasRemovidas.length > 0) {
+        console.warn(
+          `Faltan columnas en solicitudes (${columnasRemovidas.join(
+            ", "
+          )}). Ejecuta la migracion SQL.`
+        );
+      }
 
       Swal.fire({
         icon: "success",
         title: "Solicitud enviada correctamente",
         html: `
-        <p>Tu número de caso es:</p>
+        <p>Tu numero de caso es:</p>
         <h3 style="color:#00bcd4; font-weight:700;">${numero_caso}</h3>
-        <p>También te enviamos un correo de confirmación con los detalles.</p>
+        <p>Tambien te enviamos un correo de confirmacion con los detalles.</p>
       `,
         confirmButtonColor: "#00bcd4",
       });
 
-      e.target.reset();
+      form.reset();
       setServicioSeleccionado(null);
+      setTipoCliente("persona");
     } catch (error) {
-      console.error("❌ Error al registrar solicitud:", error.message);
+      console.error("Error al registrar solicitud:", error?.message || error);
       Swal.fire({
         icon: "error",
         title: "Error al enviar la solicitud",
-        text: "Por favor, intenta nuevamente más tarde.",
+        text: "Por favor, intenta nuevamente mas tarde.",
         confirmButtonColor: "#00bcd4",
       });
     }
   };
-
-  // 🔍 Consulta de caso por número
+  // Consulta de caso por numero
   const handleBuscarCaso = async (e) => {
     e.preventDefault();
     const valor = caseNumero.trim();
+    const valorMayus = valor.toUpperCase();
+    const valorNumerico = soloDigitos(valor);
     if (!valor) {
       Swal.fire({
         icon: "info",
-        title: "Ingresa tu número de caso",
-        text: "Ejemplo: CASE-123456",
+        title: "Ingresa numero de caso, cedula o RNC",
+        text: "Ejemplo: CASE-123456, 00112345678 o 131234567",
         confirmButtonColor: "#00bcd4",
       });
       return;
@@ -499,16 +701,46 @@ export default function Servicios() {
     setCaseResult(null);
 
     try {
-      // Primero buscamos por numero_caso
+      // 1) Buscar por numero de caso exacto (CASE-XXXXXX)
       let { data, error } = await supabase
         .from("solicitudes")
         .select("*, servicios(nombre)")
-        .eq("numero_caso", valor)
+        .eq("numero_caso", valorMayus)
         .maybeSingle();
 
-      // Si no encuentra y el usuario puso solo un número, probamos por id
+      // 2) Si no aparece, intentar por cedula (11 digitos)
+      if ((!data || error) && valorNumerico.length === 11) {
+        const { data: porCedula, error: errCed } = await supabase
+          .from("solicitudes")
+          .select("*, servicios(nombre)")
+          .eq("cedula", valorNumerico)
+          .order("fecha", { ascending: false })
+          .limit(1);
+
+        if (!errCed && Array.isArray(porCedula) && porCedula.length > 0) {
+          data = porCedula[0];
+          error = null;
+        }
+      }
+
+      // 3) Si no aparece, intentar por RNC (9 digitos)
+      if ((!data || error) && valorNumerico.length === 9) {
+        const { data: porRnc, error: errRnc } = await supabase
+          .from("solicitudes")
+          .select("*, servicios(nombre)")
+          .eq("empresa_rnc", valorNumerico)
+          .order("fecha", { ascending: false })
+          .limit(1);
+
+        if (!errRnc && Array.isArray(porRnc) && porRnc.length > 0) {
+          data = porRnc[0];
+          error = null;
+        }
+      }
+
+      // 4) Si puso solo numeros y no encontro por documento, probar por id
       if ((!data || error) && /^[0-9]+$/.test(valor)) {
-        const idNum = Number(valor);
+        const idNum = Number(valorNumerico);
         const resp = await supabase
           .from("solicitudes")
           .select("*, servicios(nombre)")
@@ -522,10 +754,18 @@ export default function Servicios() {
       } else {
         const estadoFinal =
           data.estado_solicitud || data.estado || "Agendado";
+        const documentoTipo = data.tipo_cliente === "empresa" ? "RNC" : "Cedula";
+        const documentoValor =
+          data.tipo_cliente === "empresa"
+            ? data.empresa_rnc || "-"
+            : data.cedula || "-";
+
         setCaseResult({
           numero_caso: data.numero_caso || `CASE-${data.id}`,
           cliente: data.cliente,
           servicio_nombre: data.servicios?.nombre || "No especificado",
+          documento_tipo: documentoTipo,
+          documento_valor: documentoValor,
           estado: estadoFinal,
           fecha_creacion: data.fecha
             ? new Date(data.fecha).toLocaleString()
@@ -536,6 +776,8 @@ export default function Servicios() {
           hora_agendada: data.hora_agendada || "-",
           tecnico: data.tecnico_asignado || "Pendiente de asignar",
           direccion: data.direccion || "-",
+          ciudad: data.ciudad || "-",
+          sector: data.sector || "-",
         });
       }
     } catch (err) {
@@ -551,46 +793,23 @@ export default function Servicios() {
     }
   };
 
-  // filtros productos
-  const categorias = Array.from(
-    new Set((productos || []).map((p) => p.categoria || "Otros"))
-  );
-
-  const marcas = Array.from(
-    new Set(
-      (productos || [])
-        .filter((p) =>
-          categoriaFiltro ? (p.categoria || "Otros") === categoriaFiltro : true
-        )
-        .map((p) => p.marca || p.proveedor || "Sin marca")
-    )
-  );
-
-  const productosFiltrados = (productos || []).filter((p) => {
-    const cat = p.categoria || "Otros";
-    const marca = p.marca || p.proveedor || "Sin marca";
-    if (categoriaFiltro && cat !== categoriaFiltro) return false;
-    if (marcaFiltro && marca !== marcaFiltro) return false;
-    return true;
-  });
-
   return (
     <Container>
       <h2 style={{ color: "#00bcd4", marginBottom: "1rem" }}>
         Nuestros Servicios
       </h2>
-
-      {/* 🔍 CONSULTA DE CASO */}
+      {/* CONSULTA DE CASO */}
       <CaseCard>
         <CaseTitle>Consulta el estado de tu caso</CaseTitle>
         <p style={{ fontSize: "0.85rem", opacity: 0.8, margin: 0 }}>
-          Ingresa el número de caso que recibiste por correo
-          (ej: <strong>CASE-123456</strong>) para ver su estado actual.
+          Ingresa tu numero de caso, cedula o RNC para ver el estado actual.
+          Ejemplos: <strong>CASE-123456</strong>, <strong>00112345678</strong>,{" "}
+          <strong>131234567</strong>.
         </p>
 
         <CaseForm onSubmit={handleBuscarCaso}>
           <CaseInput
-            placeholder="Ej: CASE-123456"
+            placeholder="CASE-123456, Cedula o RNC"
             value={caseNumero}
             onChange={(e) => setCaseNumero(e.target.value)}
           />
@@ -603,13 +822,13 @@ export default function Servicios() {
           <CaseResultBox>
             {caseResult.notFound ? (
               <div style={{ fontSize: "0.9rem" }}>
-                No encontramos un caso con ese número. Verifica que lo hayas
-                escrito correctamente.
+                No encontramos resultados con ese numero de caso, cedula o RNC.
+                Verifica que lo hayas escrito correctamente.
               </div>
             ) : (
               <>
                 <CaseRow>
-                  <span>Número de caso:</span>
+                  <span>Numero de caso:</span>
                   <span>{caseResult.numero_caso}</span>
                 </CaseRow>
                 <CaseRow>
@@ -621,10 +840,14 @@ export default function Servicios() {
                   <span>{caseResult.servicio_nombre}</span>
                 </CaseRow>
                 <CaseRow>
+                  <span>{caseResult.documento_tipo}:</span>
+                  <span>{caseResult.documento_valor}</span>
+                </CaseRow>
+                <CaseRow>
                   <span>Estado:</span>
                   <span>
                     <CaseStatusTag $estado={caseResult.estado}>
-                      ● {caseResult.estado}
+                      {caseResult.estado}
                     </CaseStatusTag>
                   </span>
                 </CaseRow>
@@ -641,12 +864,20 @@ export default function Servicios() {
                   <span>{caseResult.hora_agendada}</span>
                 </CaseRow>
                 <CaseRow>
-                  <span>Técnico asignado:</span>
+                  <span>Tecnico asignado:</span>
                   <span>{caseResult.tecnico}</span>
                 </CaseRow>
                 <CaseRow>
-                  <span>Dirección de trabajo:</span>
+                  <span>Direccion de trabajo:</span>
                   <span>{caseResult.direccion}</span>
+                </CaseRow>
+                <CaseRow>
+                  <span>Ciudad:</span>
+                  <span>{caseResult.ciudad}</span>
+                </CaseRow>
+                <CaseRow>
+                  <span>Sector:</span>
+                  <span>{caseResult.sector}</span>
                 </CaseRow>
               </>
             )}
@@ -662,17 +893,14 @@ export default function Servicios() {
         >
           Servicios disponibles
         </TabButton>
-        <TabButton
-          $active={tab === "productos"}
-          onClick={() => setTab("productos")}
-        >
-          Productos y equipos
+        <TabButton $active={tab === "marcas"} onClick={() => setTab("marcas")}>
+          Marcas con las que trabajamos
         </TabButton>
       </Tabs>
 
       {/* TAB SERVICIOS */}
-      {tab === "disponibles" ? (
-        loading ? (
+      {tab === "disponibles" &&
+        (loading ? (
           <p>Cargando servicios...</p>
         ) : servicios.length === 0 ? (
           <p>No hay servicios disponibles por el momento.</p>
@@ -703,7 +931,7 @@ export default function Servicios() {
                     >
                       {/* Tipo de cliente */}
                       <TipoClienteRow>
-                        <span>¿Quién solicita el servicio?</span>
+                        <span>Quien solicita el servicio?</span>
                         <label>
                           <input
                             type="radio"
@@ -726,18 +954,44 @@ export default function Servicios() {
                         </label>
                       </TipoClienteRow>
 
+                      {tipoCliente === "persona" && (
+                        <>
+                          <Input
+                            name="cedula"
+                            placeholder="Cedula (ej: 001-1234567-8)"
+                            maxLength={13}
+                            required={tipoCliente === "persona"}
+                            onInput={(ev) => {
+                              ev.target.value = formatearCedula(ev.target.value);
+                            }}
+                          />
+                          <HelpText>
+                            Se valida automaticamente con el algoritmo oficial de
+                            cedula dominicana.
+                          </HelpText>
+                        </>
+                      )}
+
                       {tipoCliente === "empresa" && (
                         <>
                           <Input
                             name="empresa_nombre"
-                            placeholder="Nombre o razón social de la empresa"
+                            placeholder="Nombre o razon social de la empresa"
                             required={tipoCliente === "empresa"}
                           />
                           <Input
                             name="empresa_rnc"
-                            placeholder="RNC o identificación fiscal"
+                            placeholder="RNC (ej: 1-31-12345-6)"
                             required={tipoCliente === "empresa"}
+                            maxLength={12}
+                            onInput={(ev) => {
+                              ev.target.value = formatearRnc(ev.target.value);
+                            }}
                           />
+                          <HelpText>
+                            El RNC se valida automaticamente antes de enviar la
+                            solicitud.
+                          </HelpText>
                         </>
                       )}
 
@@ -749,19 +1003,51 @@ export default function Servicios() {
                       <Input
                         name="email"
                         type="email"
-                        placeholder="Tu correo electrónico"
+                        placeholder="Tu correo electronico"
                         required
                       />
                       <Input
                         name="telefono"
-                        placeholder="Tu número de teléfono"
+                        placeholder="Tu numero de telefono"
                         required
                       />
                       <Input
                         name="direccion"
-                        placeholder="Dirección donde se realizará el servicio"
+                        placeholder="Direccion donde se realizara el servicio"
                         required
                       />
+                      <Input
+                        name="ciudad"
+                        placeholder="Ciudad"
+                        required
+                      />
+                      <Input
+                        name="sector"
+                        placeholder="Sector"
+                        required
+                      />
+                      {esServicioInstalacionRedes(s.nombre) && (
+                        <>
+                          <Input
+                            as="select"
+                            name="tipo_instalacion"
+                            defaultValue=""
+                            required
+                          >
+                            <option value="" disabled>
+                              Selecciona tipo de instalacion
+                            </option>
+                            <option value="Camaras de seguridad">
+                              Camaras de seguridad
+                            </option>
+                            <option value="Cableado">Cableado</option>
+                            <option value="Redes">Redes</option>
+                          </Input>
+                          <HelpText>
+                            Elige que tipo de instalacion deseas para este servicio.
+                          </HelpText>
+                        </>
+                      )}
                       <TextArea
                         name="descripcion"
                         rows="3"
@@ -775,98 +1061,64 @@ export default function Servicios() {
               </ServicioCard>
             ))}
           </Content>
-        )
-      ) : (
-        /* TAB PRODUCTOS */
+        ))}
+
+      {/* TAB MARCAS */}
+      {tab === "marcas" && (
         <Content initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <ProductsWrapper>
+          <BrandsWrapper>
             <h3
               style={{
                 textAlign: "left",
                 marginTop: 0,
-                marginBottom: "0.8rem",
+                marginBottom: "0.6rem",
                 color: "#00bcd4",
               }}
             >
-              Catálogo de cámaras y otros equipos
+              Marcas de productos con las que trabajamos
             </h3>
             <p
               style={{
-                fontSize: "0.85rem",
-                opacity: 0.8,
+                fontSize: "0.88rem",
+                opacity: 0.82,
                 textAlign: "left",
-                marginBottom: "1rem",
+                marginBottom: "0.9rem",
               }}
             >
-              Aquí puedes ver algunos de los modelos que utilizamos para las
-              instalaciones: tipos de cámara, marcas y equipos relacionados.
+              Mostramos primero las marcas configuradas por la empresa. Si aun no
+              se han cargado logos, usamos las marcas detectadas en el catalogo.
             </p>
 
-            {loadingProductos ? (
-              <p>Cargando productos...</p>
-            ) : productos.length === 0 ? (
-              <p>
-                Todavía no hemos publicado productos en el catálogo público.
-              </p>
+            {loadingMarcas && marcasVisibles.length === 0 ? (
+              <p>Cargando marcas...</p>
+            ) : marcasVisibles.length === 0 ? (
+              <p>No hay marcas configuradas aun.</p>
             ) : (
-              <>
-                <FiltersRow>
-                  <SelectFilter
-                    value={categoriaFiltro}
-                    onChange={(e) => {
-                      setCategoriaFiltro(e.target.value);
-                      setMarcaFiltro("");
-                    }}
-                  >
-                    <option value="">Todas las categorías</option>
-                    {categorias.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </SelectFilter>
-
-                  <SelectFilter
-                    value={marcaFiltro}
-                    onChange={(e) => setMarcaFiltro(e.target.value)}
-                  >
-                    <option value="">Todas las marcas</option>
-                    {marcas.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </SelectFilter>
-                </FiltersRow>
-
-                <ProductGrid>
-                  {productosFiltrados.map((p) => (
-                    <ProductCard key={p.id}>
-                      <ProductTitle>{p.nombre}</ProductTitle>
-                      <div style={{ marginBottom: "0.2rem" }}>
-                        {p.categoria && (
-                          <ProductTag>{p.categoria}</ProductTag>
-                        )}
-                        {(p.marca || p.proveedor) && (
-                          <ProductTag>
-                            {p.marca || p.proveedor}
-                          </ProductTag>
-                        )}
-                      </div>
-                      {p.modelo && (
-                        <div style={{ fontSize: "0.85rem", opacity: 0.85 }}>
-                          Modelo: {p.modelo}
-                        </div>
+              <BrandsGrid>
+                {marcasVisibles.map((marca) => (
+                  <BrandCard key={marca.id}>
+                    <BrandLogo>
+                      {marca.logo_url ? (
+                        <img
+                          src={marca.logo_url}
+                          alt={`Logo ${marca.nombre}`}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <BrandFallback>{inicialesMarca(marca.nombre)}</BrandFallback>
                       )}
-
-                    </ProductCard>
-                  ))}
-                </ProductGrid>
-              </>
+                    </BrandLogo>
+                    <BrandName>{marca.nombre}</BrandName>
+                  </BrandCard>
+                ))}
+              </BrandsGrid>
             )}
-          </ProductsWrapper>
+          </BrandsWrapper>
         </Content>
       )}
+
     </Container>
   );
 }
+
+

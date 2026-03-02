@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import styled from "styled-components";
 import { mostrarPublicaciones } from "../../supabase/crudPublicaciones";
 import PublicacionCard from "../../components/templates/PublicacionCard";
