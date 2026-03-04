@@ -314,6 +314,7 @@ const CUENTA_BANCO_EMPRESA =
 const BANCO_EMPRESA = import.meta.env.VITE_EMPRESA_BANCO?.trim() || "";
 const TITULAR_CUENTA_EMPRESA =
   import.meta.env.VITE_EMPRESA_TITULAR_CUENTA?.trim() || "";
+const RPE_EMPRESA = import.meta.env.VITE_EMPRESA_RPE?.trim() || "______________";
 
 function formatearEstado(estado) {
   if (!estado) return "Pendiente";
@@ -639,7 +640,7 @@ function toNumber(value) {
     }
   }
 
-  // =================== PDF GENERAL (COTIZ / FACTURA / PLAN 50) ===================
+  // =================== PDF GENERAL (COTIZ / FACTURA / PLAN 50 / RPE) ===================
   function construirPDF(logoDataUrl, tipoDoc = "cotizacion") {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
 
@@ -651,11 +652,14 @@ function toNumber(value) {
     const dark = [40, 40, 40];
     const gray = [90, 90, 90];
 
+    const incluyeRPE = tipoDoc === "cotizacion_rpe";
     const titulo =
       tipoDoc === "factura"
         ? "FACTURA"
         : tipoDoc === "plan50"
         ? "COTIZACION (PLAN 50/50)"
+        : tipoDoc === "cotizacion_rpe"
+        ? "COTIZACION (RPE)"
         : "COTIZACION";
 
     const numeroDoc = String(cotizacion?.id || "").padStart(5, "0");
@@ -694,6 +698,9 @@ function toNumber(value) {
     doc.text(`Direccion: ${EMPRESA.direccion}`, infoX, y + 20);
     doc.text(`Telefono: ${EMPRESA.telefono}`, infoX, y + 32);
     doc.text(`RNC: ${EMPRESA.rnc}`, infoX, y + 44);
+    if (incluyeRPE) {
+      doc.text(`RPE: ${RPE_EMPRESA}`, infoX, y + 56);
+    }
 
     const rightX = pageWidth - marginX;
     doc.setTextColor(...dark);
@@ -709,7 +716,7 @@ function toNumber(value) {
     doc.text(`Fecha: ${fechaDocStr}`, rightX, y + 32, { align: "right" });
     doc.text(`Usuario: ${usuarioDoc}`, rightX, y + 44, { align: "right" });
 
-    y += 66;
+    y += incluyeRPE ? 78 : 66;
     doc.setDrawColor(220, 220, 220);
     doc.line(marginX, y, pageWidth - marginX, y);
 
@@ -933,6 +940,11 @@ function toNumber(value) {
     doc.text(`RNC: ${EMPRESA.rnc}`, pageWidth - marginX, pageHeight - 30, {
       align: "right",
     });
+    if (incluyeRPE) {
+      doc.text(`RPE: ${RPE_EMPRESA}`, pageWidth - marginX, pageHeight - 18, {
+        align: "right",
+      });
+    }
 
     return doc;
   }
@@ -1128,6 +1140,8 @@ function toNumber(value) {
         ? "orden_compra"
         : tipoDoc === "plan50"
         ? "plan_50_50"
+        : tipoDoc === "cotizacion_rpe"
+        ? "cotizacion_rpe"
         : "cotizacion";
 
     doc.save(`${prefijo}_${cotizacion.id}.pdf`);
@@ -1931,10 +1945,17 @@ function toNumber(value) {
             <Download size={18} />
             Descargar orden de compra (PDF)
           </Button>
-          <Button onClick={() => handleDescargar("plan50")}>
-            <Download size={18} />
-            Descargar plan 50/50 (PDF)
-          </Button>
+          {cotizacion.usa_anticipo ? (
+            <Button onClick={() => handleDescargar("plan50")}>
+              <Download size={18} />
+              Descargar plan 50/50 (PDF)
+            </Button>
+          ) : (
+            <Button onClick={() => handleDescargar("cotizacion_rpe")}>
+              <Download size={18} />
+              Descargar cotización con RPE (PDF)
+            </Button>
+          )}
         </PdfButtons>
       </Card>
     </Wrapper>
