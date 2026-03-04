@@ -313,7 +313,7 @@ export default function Inicio() {
             <Title>
               Soluciones profesionales en{" "}
               <span>cámaras, cableado y soporte IT</span>
-              para tu empresa.
+              para tu hogar y empresa.
             </Title>
 
             <Subtitle>

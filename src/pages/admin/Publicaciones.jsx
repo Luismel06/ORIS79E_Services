@@ -8,16 +8,33 @@ import { Image, Trash2 } from "lucide-react";
 // ==== ESTILOS ====
 
 const Container = styled.div`
-  padding: 2rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
   color: ${({ theme }) => theme.text};
 `;
 
 const FormCard = styled.div`
   background: ${({ theme }) => theme.cardBackground};
-  padding: 1.8rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
   border-radius: 16px;
   margin-bottom: 2rem;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+`;
+
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+
+  .full {
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const Title = styled.h2`
@@ -61,9 +78,17 @@ const Button = styled.button`
   cursor: pointer;
   margin-top: 1rem;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
 
   &:hover {
     opacity: 0.9;
+  }
+
+  @media (max-width: 760px) {
+    width: 100%;
   }
 `;
 
@@ -102,6 +127,12 @@ const DeleteButton = styled.button`
     transform: scale(1.2);
   }
 `;
+
+const FormField = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
 
 // =======================================================
 // ====== COMPONENTE PRINCIPAL ===========================
@@ -248,29 +279,39 @@ export default function Publicaciones() {
       <FormCard>
         <Title>Crear Publicación</Title>
 
-        <Label>Título</Label>
-        <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+        <FormGrid>
+          <FormField>
+            <Label>Título</Label>
+            <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+          </FormField>
 
-        <Label>Descripción</Label>
-        <TextArea
-          rows="4"
-          value={descripcion}
-          onChange={(e) => setDescripcion(e.target.value)}
-        />
+          <FormField>
+            <Label>Categoría</Label>
+            <Input
+              placeholder="Ej: Instalación, Networking..."
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+            />
+          </FormField>
 
-        <Label>Categoría</Label>
-        <Input
-          placeholder="Ej: Instalación, Networking..."
-          value={categoria}
-          onChange={(e) => setCategoria(e.target.value)}
-        />
+          <FormField className="full">
+            <Label>Descripción</Label>
+            <TextArea
+              rows="4"
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+            />
+          </FormField>
 
-        <Label>Imágenes (múltiples)</Label>
-        <Input
-          type="file"
-          multiple
-          onChange={(e) => setImagenes([...e.target.files])}
-        />
+          <FormField className="full">
+            <Label>Imágenes (múltiples)</Label>
+            <Input
+              type="file"
+              multiple
+              onChange={(e) => setImagenes([...e.target.files])}
+            />
+          </FormField>
+        </FormGrid>
 
         <Button onClick={crearPublicacion}>
           <Image size={18} /> Subir Publicación

@@ -6,30 +6,65 @@ import { Eye, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Wrapper = styled.div`
-  padding: 2rem;
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`;
+
+const PageHeader = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+`;
+
+const PageTitle = styled.h2`
+  margin: 0;
+  color: ${({ theme }) => theme.accent};
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+`;
+
+const PageDescription = styled.p`
+  margin: 0;
+  font-size: 0.94rem;
+  opacity: 0.82;
 `;
 
 const FormCard = styled.form`
   background: ${({ theme }) => theme.cardBackground};
   border: 1px solid ${({ theme }) => theme.border};
-  border-radius: 12px;
-  padding: 1.25rem;
-  margin-bottom: 1.8rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  padding: clamp(1rem, 2vw, 1.35rem);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
 `;
 
-const Section = styled.div`
+const Section = styled.section`
   margin-top: 1rem;
 `;
 
+const SectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+
+  h3 {
+    margin: 0;
+  }
+`;
+
 const SectionTitle = styled.h3`
-  margin-bottom: 0.5rem;
+  margin: 0 0 0.55rem;
   color: ${({ theme }) => theme.accent};
+  font-size: 1.03rem;
 `;
 
 const Description = styled.p`
-  margin-bottom: 0.8rem;
-  font-size: 0.92rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
   opacity: 0.8;
 `;
 
@@ -45,44 +80,52 @@ const Grid = styled.div`
 
 const Grid5 = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1.8fr 0.8fr 1fr;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.7rem;
   align-items: end;
 
   @media (max-width: 1100px) {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
   }
 `;
 
 const Label = styled.label`
   display: block;
-  font-size: 0.88rem;
-  margin-bottom: 0.2rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
   font-weight: 600;
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 0.65rem 0.7rem;
+  padding: 0.66rem 0.72rem;
   border: 1px solid ${({ theme }) => theme.border};
-  border-radius: 8px;
+  border-radius: 10px;
   background: ${({ theme }) => theme.inputBackground || theme.cardBackground};
   color: ${({ theme }) => theme.text};
 `;
 
 const Select = styled.select`
   width: 100%;
-  padding: 0.65rem 0.7rem;
+  padding: 0.66rem 0.72rem;
   border: 1px solid ${({ theme }) => theme.border};
-  border-radius: 8px;
+  border-radius: 10px;
   background: ${({ theme }) => theme.inputBackground || theme.cardBackground};
   color: ${({ theme }) => theme.text};
 `;
 
 const Button = styled.button`
   border: none;
-  border-radius: 8px;
-  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  padding: 0.66rem 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: 0.2s;
@@ -107,9 +150,37 @@ const Divider = styled.hr`
   margin: 1.2rem 0;
 `;
 
+const InlineActions = styled.div`
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+
+  button {
+    flex: 1 1 190px;
+  }
+`;
+
+const ToggleRow = styled.label`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.92rem;
+`;
+
+const MutedText = styled.p`
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  opacity: 0.8;
+`;
+
 const TableWrap = styled.div`
   width: 100%;
   overflow-x: auto;
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 12px;
+  background: ${({ theme }) => theme.cardBackground};
 `;
 
 const Table = styled.table`
@@ -127,6 +198,13 @@ const Table = styled.table`
 
   th {
     background: ${({ theme }) => theme.inputBackground || theme.cardBackground};
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
   }
 
   .delete-btn {
@@ -142,9 +220,9 @@ const Table = styled.table`
 
 const TotalsCard = styled.div`
   margin-top: 0.8rem;
-  padding: 0.9rem;
+  padding: 0.95rem;
   border: 1px solid ${({ theme }) => theme.border};
-  border-radius: 10px;
+  border-radius: 12px;
   background: ${({ theme }) => theme.inputBackground || theme.cardBackground};
 `;
 
@@ -154,6 +232,130 @@ const Row = styled.div`
   gap: 1rem;
   margin: 0.35rem 0;
   font-size: 0.92rem;
+
+  @media (max-width: 450px) {
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+`;
+
+const SubmitRow = styled.div`
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+
+  button {
+    width: 100%;
+  }
+
+  @media (min-width: 640px) {
+    button {
+      width: auto;
+      min-width: 220px;
+    }
+  }
+`;
+
+const MobileOnly = styled.div`
+  display: none;
+
+  @media (max-width: 820px) {
+    display: block;
+  }
+`;
+
+const DesktopOnly = styled.div`
+  @media (max-width: 820px) {
+    display: none;
+  }
+`;
+
+const LineCardList = styled.div`
+  display: grid;
+  gap: 0.6rem;
+`;
+
+const LineCard = styled.article`
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 12px;
+  padding: 0.8rem;
+  background: ${({ theme }) => theme.cardBackground};
+  display: grid;
+  gap: 0.35rem;
+`;
+
+const LineTop = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+`;
+
+const LineTitle = styled.strong`
+  font-size: 0.94rem;
+`;
+
+const LineMeta = styled.p`
+  margin: 0;
+  font-size: 0.83rem;
+  opacity: 0.8;
+`;
+
+const HistoryTitle = styled.h3`
+  margin: 0;
+  color: ${({ theme }) => theme.accent};
+`;
+
+const HistoryCard = styled.article`
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: ${({ theme }) => theme.cardBackground};
+  display: grid;
+  gap: 0.45rem;
+`;
+
+const HistoryRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.88rem;
+
+  span:first-child {
+    opacity: 0.75;
+  }
+`;
+
+const HistoryActions = styled.div`
+  display: flex;
+  gap: 0.45rem;
+  justify-content: flex-end;
+`;
+
+const IconCircleButton = styled.button`
+  border: 1px solid ${({ theme }) => theme.border};
+  background: ${({ theme }) => theme.cardBackground};
+  color: ${({ theme }) => theme.text};
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+
+  &:hover {
+    color: ${({ theme }) => theme.accent};
+    border-color: ${({ theme }) => theme.accent};
+  }
+`;
+
+const DeleteIconButton = styled(IconCircleButton)`
+  color: #d9534f;
+
+  &:hover {
+    color: #ff0000;
+    border-color: rgba(217, 83, 79, 0.55);
+  }
 `;
 
 const EstadoBadge = styled.span`
@@ -200,6 +402,12 @@ export default function Cotizaciones() {
   const navigate = useNavigate();
 
   const [cliente, setCliente] = useState("");
+  const [direccionCliente, setDireccionCliente] = useState("");
+  const [ciudadCliente, setCiudadCliente] = useState("");
+  const [documentoCliente, setDocumentoCliente] = useState("");
+  const [telefonoCliente, setTelefonoCliente] = useState("");
+  const [sectorCliente, setSectorCliente] = useState("");
+  const [emailCliente, setEmailCliente] = useState("");
   const [servicio, setServicio] = useState("");
   const [descuento, setDescuento] = useState(0);
   const [nombreServicio, setNombreServicio] = useState("");
@@ -228,7 +436,9 @@ export default function Cotizaciones() {
   const [precioCatalogo, setPrecioCatalogo] = useState(0);
 
   const [manualCategoria, setManualCategoria] = useState("");
+  const [manualModelo, setManualModelo] = useState("");
   const [manualMarca, setManualMarca] = useState("");
+  const [manualProveedor, setManualProveedor] = useState("");
   const [manualConcepto, setManualConcepto] = useState("");
   const [manualCantidad, setManualCantidad] = useState(1);
   const [manualPrecio, setManualPrecio] = useState(0);
@@ -257,7 +467,7 @@ export default function Cotizaciones() {
     const { data, error } = await supabase
       .from("solicitudes")
       .select(
-        "id, cliente, servicio_id, estado, numero_caso, tipo_cliente, cedula, empresa_rnc, empresa_nombre"
+        "id, cliente, servicio_id, estado, numero_caso, tipo_cliente, cedula, empresa_rnc, empresa_nombre, direccion, ciudad, telefono, sector, email"
       );
     if (!error) setSolicitudes(data || []);
   }
@@ -273,7 +483,7 @@ export default function Cotizaciones() {
   async function fetchProductos() {
     const { data, error } = await supabase
       .from("productos")
-      .select("id, nombre, precio, categoria, marca, proveedor");
+      .select("id, nombre, precio, categoria, modelo, marca, proveedor");
     if (!error) setProductos(data || []);
   }
 
@@ -332,19 +542,21 @@ export default function Cotizaciones() {
 
   function limpiarLineaManual() {
     setManualCategoria("");
+    setManualModelo("");
     setManualMarca("");
+    setManualProveedor("");
     setManualConcepto("");
     setManualCantidad(1);
     setManualPrecio(0);
   }
 
   function agregarConceptoManual() {
-    const concepto = manualConcepto.trim();
+    const descripcion = manualConcepto.trim();
     const cantidad = toNumber(manualCantidad);
     const precio = toNumber(manualPrecio);
 
-    if (!concepto) {
-      Swal.fire("Falta concepto", "Escribe el nombre del equipo o material.", "warning");
+    if (!descripcion) {
+      Swal.fire("Falta descripcion", "Escribe la descripcion del producto o material.", "warning");
       return;
     }
 
@@ -367,8 +579,10 @@ export default function Cotizaciones() {
         origen: "manual",
         producto_id: null,
         categoria: manualCategoria.trim() || "Sin categoria",
+        modelo: manualModelo.trim() || "Sin modelo",
+        descripcion,
         marca: manualMarca.trim() || "Sin marca",
-        nombre: concepto,
+        proveedor: manualProveedor.trim() || "Sin proveedor",
         cantidad,
         precio_unitario: precio,
         subtotal,
@@ -410,8 +624,10 @@ export default function Cotizaciones() {
         origen: "catalogo",
         producto_id: prod.id,
         categoria: prod.categoria || "Otros",
-        marca: prod.marca || prod.proveedor || "Sin marca",
-        nombre: prod.nombre,
+        modelo: prod.modelo || "Sin modelo",
+        descripcion: prod.nombre,
+        marca: prod.marca || "Sin marca",
+        proveedor: prod.proveedor || "Sin proveedor",
         cantidad,
         precio_unitario: precio,
         subtotal: cantidad * precio,
@@ -431,6 +647,12 @@ export default function Cotizaciones() {
     const payload = { ...payloadCotizacion };
     const columnasRemovidas = [];
     const columnasCompat = [
+      "cliente_direccion",
+      "cliente_ciudad",
+      "cliente_documento",
+      "cliente_telefono",
+      "cliente_sector",
+      "cliente_email",
       "numero_cuenta_banco",
       "nombre_cuenta_banco",
       "banco_cuenta_banco",
@@ -466,6 +688,46 @@ export default function Cotizaciones() {
     }
 
     return { cot: null, error: ultimoError, columnasRemovidas };
+  }
+
+  async function insertarItemsCotizacionConFallback(items) {
+    if (!Array.isArray(items) || items.length === 0) {
+      return { error: null, columnasRemovidas: [] };
+    }
+
+    let payload = items.map((item) => ({ ...item }));
+    const columnasRemovidas = [];
+    const columnasCompat = ["categoria", "modelo", "marca", "proveedor"];
+    let ultimoError = null;
+
+    for (let intento = 0; intento <= columnasCompat.length; intento++) {
+      const { error } = await supabase.from("cotizacion_items").insert(payload);
+      if (!error) {
+        return { error: null, columnasRemovidas };
+      }
+
+      ultimoError = error;
+      const msg = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+
+      if (!msg.includes("column")) break;
+
+      const faltante = columnasCompat.find(
+        (col) =>
+          msg.includes(col) &&
+          payload.some((item) => Object.prototype.hasOwnProperty.call(item, col))
+      );
+
+      if (!faltante) break;
+
+      payload = payload.map((item) => {
+        const clone = { ...item };
+        delete clone[faltante];
+        return clone;
+      });
+      columnasRemovidas.push(faltante);
+    }
+
+    return { error: ultimoError, columnasRemovidas };
   }
 
   async function guardarCotizacion(e) {
@@ -511,6 +773,12 @@ export default function Cotizaciones() {
 
     const payloadCotizacion = {
       cliente: cliente.trim(),
+      cliente_direccion: direccionCliente.trim() || null,
+      cliente_ciudad: ciudadCliente.trim() || null,
+      cliente_documento: documentoCliente.trim() || null,
+      cliente_telefono: telefonoCliente.trim() || null,
+      cliente_sector: sectorCliente.trim() || null,
+      cliente_email: emailCliente.trim() || null,
       total: Number(totalActual.toFixed(2)),
       descuento: descuentoNum,
       servicio: servicio.trim(),
@@ -551,15 +819,28 @@ export default function Cotizaciones() {
       const payloadItems = detalle.map((item) => ({
         cotizacion_id: cot.id,
         producto_id: item.producto_id || null,
-        nombre_producto: item.nombre,
+        nombre_producto: item.descripcion || item.nombre || "",
+        categoria: item.categoria || null,
+        modelo: item.modelo || null,
+        marca: item.marca || null,
+        proveedor: item.proveedor || null,
         cantidad: item.cantidad,
         precio_unitario: item.precio_unitario,
         subtotal: item.subtotal,
       }));
 
-      const { error: errorItems } = await supabase
-        .from("cotizacion_items")
-        .insert(payloadItems);
+      const {
+        error: errorItems,
+        columnasRemovidas: columnasItemsRemovidas,
+      } = await insertarItemsCotizacionConFallback(payloadItems);
+
+      if (columnasItemsRemovidas.length > 0) {
+        console.warn(
+          `Faltan columnas en cotizacion_items (${columnasItemsRemovidas.join(
+            ", "
+          )}). Ejecuta las migraciones SQL.`
+        );
+      }
 
       if (errorItems) {
         console.error(errorItems);
@@ -576,6 +857,12 @@ export default function Cotizaciones() {
     Swal.fire("Exito", "Cotizacion guardada correctamente.", "success");
 
     setCliente("");
+    setDireccionCliente("");
+    setCiudadCliente("");
+    setDocumentoCliente("");
+    setTelefonoCliente("");
+    setSectorCliente("");
+    setEmailCliente("");
     setServicio("");
     setDescuento(0);
     setNombreServicio("");
@@ -616,16 +903,34 @@ export default function Cotizaciones() {
     Swal.fire("Eliminada", "La cotizacion ha sido eliminada.", "success");
   }
 
+  function textoAnticipo(cotizacion) {
+    if (!cotizacion.usa_anticipo) return "No";
+    return `Inicial: RD$${toNumber(cotizacion.monto_anticipo).toFixed(
+      2
+    )} / Restante: RD$${toNumber(cotizacion.monto_pendiente).toFixed(2)}${
+      cotizacion.banco_cuenta_banco ? ` / Banco: ${cotizacion.banco_cuenta_banco}` : ""
+    }${cotizacion.nombre_cuenta_banco ? ` / Titular: ${cotizacion.nombre_cuenta_banco}` : ""}${
+      cotizacion.numero_cuenta_banco ? ` / Cuenta: ${cotizacion.numero_cuenta_banco}` : ""
+    }`;
+  }
+
   return (
     <Wrapper>
-      <FormCard onSubmit={guardarCotizacion}>
-        <SectionTitle>Nueva Cotizacion</SectionTitle>
-        <Description>
-          Flujo manual: escribe categoria, marca, concepto, cantidad y precio para cada
-          linea. El catalogo queda como opcion secundaria.
-        </Description>
+      <PageHeader>
+        <PageTitle>Cotizaciones</PageTitle>
+        <PageDescription>
+          Crea propuestas por bloques y revisa el historial de forma rapida desde
+          escritorio o telefono.
+        </PageDescription>
+      </PageHeader>
 
+      <FormCard onSubmit={guardarCotizacion}>
         <Section>
+          <SectionTitle>Nueva cotizacion</SectionTitle>
+          <Description>
+            Completa datos del cliente, agrega conceptos y guarda todo en un solo flujo.
+          </Description>
+
           <Grid>
             <div>
               <Label>Cliente</Label>
@@ -684,6 +989,30 @@ export default function Cotizaciones() {
                   if (!servicio.trim() && nombreServ) {
                     setServicio(nombreServ);
                   }
+
+                  const documento =
+                    solicitud.tipo_cliente === "empresa"
+                      ? solicitud.empresa_rnc
+                      : solicitud.cedula || solicitud.empresa_rnc || "";
+
+                  if (!direccionCliente.trim() && solicitud.direccion) {
+                    setDireccionCliente(solicitud.direccion);
+                  }
+                  if (!ciudadCliente.trim() && solicitud.ciudad) {
+                    setCiudadCliente(solicitud.ciudad);
+                  }
+                  if (!documentoCliente.trim() && documento) {
+                    setDocumentoCliente(documento);
+                  }
+                  if (!telefonoCliente.trim() && solicitud.telefono) {
+                    setTelefonoCliente(solicitud.telefono);
+                  }
+                  if (!sectorCliente.trim() && solicitud.sector) {
+                    setSectorCliente(solicitud.sector);
+                  }
+                  if (!emailCliente.trim() && solicitud.email) {
+                    setEmailCliente(solicitud.email);
+                  }
                 }}
               >
                 <option value="">Sin solicitud ligada</option>
@@ -701,6 +1030,60 @@ export default function Cotizaciones() {
                   </option>
                 ))}
               </Select>
+            </div>
+
+            <div>
+              <Label>Direccion</Label>
+              <Input
+                value={direccionCliente}
+                onChange={(e) => setDireccionCliente(e.target.value)}
+                placeholder="Direccion del cliente"
+              />
+            </div>
+
+            <div>
+              <Label>Ciudad</Label>
+              <Input
+                value={ciudadCliente}
+                onChange={(e) => setCiudadCliente(e.target.value)}
+                placeholder="Ciudad"
+              />
+            </div>
+
+            <div>
+              <Label>RNC/Cedula</Label>
+              <Input
+                value={documentoCliente}
+                onChange={(e) => setDocumentoCliente(e.target.value)}
+                placeholder="Documento del cliente"
+              />
+            </div>
+
+            <div>
+              <Label>Tel</Label>
+              <Input
+                value={telefonoCliente}
+                onChange={(e) => setTelefonoCliente(e.target.value)}
+                placeholder="Telefono"
+              />
+            </div>
+
+            <div>
+              <Label>Sector</Label>
+              <Input
+                value={sectorCliente}
+                onChange={(e) => setSectorCliente(e.target.value)}
+                placeholder="Sector"
+              />
+            </div>
+
+            <div>
+              <Label>Email</Label>
+              <Input
+                value={emailCliente}
+                onChange={(e) => setEmailCliente(e.target.value)}
+                placeholder="Correo del cliente"
+              />
             </div>
           </Grid>
         </Section>
@@ -720,6 +1103,24 @@ export default function Cotizaciones() {
             </div>
 
             <div>
+              <Label>Modelo</Label>
+              <Input
+                value={manualModelo}
+                onChange={(e) => setManualModelo(e.target.value)}
+                placeholder="Ej: DS-2CD1043G0-I"
+              />
+            </div>
+
+            <div>
+              <Label>Descripcion</Label>
+              <Input
+                value={manualConcepto}
+                onChange={(e) => setManualConcepto(e.target.value)}
+                placeholder="Ej: Camara IP 4MP exterior"
+              />
+            </div>
+
+            <div>
               <Label>Marca</Label>
               <Input
                 value={manualMarca}
@@ -729,11 +1130,11 @@ export default function Cotizaciones() {
             </div>
 
             <div>
-              <Label>Equipo / concepto</Label>
+              <Label>Proveedor</Label>
               <Input
-                value={manualConcepto}
-                onChange={(e) => setManualConcepto(e.target.value)}
-                placeholder="Ej: Camara IP 4MP exterior"
+                value={manualProveedor}
+                onChange={(e) => setManualProveedor(e.target.value)}
+                placeholder="Ej: Distribuidora XYZ"
               />
             </div>
 
@@ -758,29 +1159,25 @@ export default function Cotizaciones() {
             </div>
           </Grid5>
 
-          <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.7rem" }}>
+          <InlineActions>
             <Button type="button" onClick={agregarConceptoManual}>
               Agregar linea manual
             </Button>
             <GhostButton type="button" onClick={limpiarLineaManual}>
               Limpiar campos
             </GhostButton>
-          </div>
+          </InlineActions>
         </Section>
 
         <Divider />
 
         <Section>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <SectionTitle style={{ marginBottom: 0 }}>Catalogo (opcional)</SectionTitle>
-            <GhostButton
-              type="button"
-              onClick={() => setMostrarCatalogo((prev) => !prev)}
-              style={{ marginTop: 0 }}
-            >
+          <SectionHeader>
+            <SectionTitle>Catalogo (opcional)</SectionTitle>
+            <GhostButton type="button" onClick={() => setMostrarCatalogo((prev) => !prev)}>
               {mostrarCatalogo ? "Ocultar catalogo" : "Usar catalogo"}
             </GhostButton>
-          </div>
+          </SectionHeader>
 
           {mostrarCatalogo && (
             <>
@@ -824,7 +1221,7 @@ export default function Cotizaciones() {
                 </div>
 
                 <div>
-                  <Label>Producto</Label>
+                  <Label>Descripcion</Label>
                   <Select
                     value={productoSeleccionado}
                     onChange={(e) => {
@@ -837,7 +1234,9 @@ export default function Cotizaciones() {
                     <option value="">Selecciona producto</option>
                     {productosFiltrados.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.nombre} - RD${toNumber(p.precio).toFixed(2)}
+                        {(p.categoria || "-")} | {(p.modelo || "-")} | {p.nombre} |{" "}
+                        {(p.marca || "-")} | {(p.proveedor || "-")} - RD$
+                        {toNumber(p.precio).toFixed(2)}
                       </option>
                     ))}
                   </Select>
@@ -868,9 +1267,11 @@ export default function Cotizaciones() {
                 </div>
               </Grid>
 
-              <Button type="button" onClick={agregarDesdeCatalogo} style={{ marginTop: "0.7rem" }}>
-                Agregar desde catalogo
-              </Button>
+              <InlineActions>
+                <Button type="button" onClick={agregarDesdeCatalogo}>
+                  Agregar desde catalogo
+                </Button>
+              </InlineActions>
             </>
           )}
         </Section>
@@ -879,51 +1280,98 @@ export default function Cotizaciones() {
 
         <Section>
           <SectionTitle>Conceptos agregados</SectionTitle>
-          <TableWrap>
-            <Table>
-              <thead>
-                <tr>
-                  <th>Categoria</th>
-                  <th>Marca</th>
-                  <th>Concepto</th>
-                  <th>Cant.</th>
-                  <th>Precio u.</th>
-                  <th>Subtotal</th>
-                  <th>Quitar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detalle.length === 0 ? (
+
+          <DesktopOnly>
+            <TableWrap>
+              <Table>
+                <thead>
                   <tr>
-                    <td colSpan={7}>Aun no hay lineas agregadas.</td>
+                    <th>Categoria</th>
+                    <th>Modelo</th>
+                    <th>Descripcion</th>
+                    <th>Marca</th>
+                    <th>Proveedor</th>
+                    <th>Cant.</th>
+                    <th>Precio u.</th>
+                    <th>Subtotal</th>
+                    <th>Quitar</th>
                   </tr>
-                ) : (
-                  detalle.map((item) => (
-                    <tr key={item.idLocal}>
-                      <td>{item.categoria || "-"}</td>
-                      <td>{item.marca || "-"}</td>
-                      <td>{item.nombre}</td>
-                      <td>{item.cantidad}</td>
-                      <td>RD${toNumber(item.precio_unitario).toFixed(2)}</td>
-                      <td>RD${toNumber(item.subtotal).toFixed(2)}</td>
-                      <td>
-                        <Trash2
-                          size={18}
-                          className="delete-btn"
-                          onClick={() => eliminarLinea(item.idLocal)}
-                        />
-                      </td>
+                </thead>
+                <tbody>
+                  {detalle.length === 0 ? (
+                    <tr>
+                      <td colSpan={9}>Aun no hay lineas agregadas.</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </Table>
-          </TableWrap>
+                  ) : (
+                    detalle.map((item) => (
+                      <tr key={item.idLocal}>
+                        <td>{item.categoria || "-"}</td>
+                        <td>{item.modelo || "-"}</td>
+                        <td>{item.descripcion || item.nombre || "-"}</td>
+                        <td>{item.marca || "-"}</td>
+                        <td>{item.proveedor || "-"}</td>
+                        <td>{item.cantidad}</td>
+                        <td>RD${toNumber(item.precio_unitario).toFixed(2)}</td>
+                        <td>RD${toNumber(item.subtotal).toFixed(2)}</td>
+                        <td>
+                          <Trash2
+                            size={18}
+                            className="delete-btn"
+                            onClick={() => eliminarLinea(item.idLocal)}
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </Table>
+            </TableWrap>
+          </DesktopOnly>
+
+          <MobileOnly>
+            {detalle.length === 0 ? (
+              <MutedText>Aun no hay lineas agregadas.</MutedText>
+            ) : (
+              <LineCardList>
+                {detalle.map((item) => (
+                  <LineCard key={item.idLocal}>
+                    <LineTop>
+                      <LineTitle>{item.descripcion || item.nombre || "-"}</LineTitle>
+                      <DeleteIconButton
+                        type="button"
+                        onClick={() => eliminarLinea(item.idLocal)}
+                        title="Quitar linea"
+                      >
+                        <Trash2 size={16} />
+                      </DeleteIconButton>
+                    </LineTop>
+                    <LineMeta>
+                      {(item.categoria || "-")} | {(item.modelo || "-")} |{" "}
+                      {(item.marca || "-")} | {(item.proveedor || "-")}
+                    </LineMeta>
+                    <HistoryRow>
+                      <span>Cantidad</span>
+                      <strong>{item.cantidad}</strong>
+                    </HistoryRow>
+                    <HistoryRow>
+                      <span>Precio unitario</span>
+                      <strong>RD${toNumber(item.precio_unitario).toFixed(2)}</strong>
+                    </HistoryRow>
+                    <HistoryRow>
+                      <span>Subtotal</span>
+                      <strong>RD${toNumber(item.subtotal).toFixed(2)}</strong>
+                    </HistoryRow>
+                  </LineCard>
+                ))}
+              </LineCardList>
+            )}
+          </MobileOnly>
         </Section>
 
         <Divider />
 
         <Section>
+          <SectionTitle>Totales y condiciones</SectionTitle>
           <Grid>
             <div>
               <Label>Descripcion del servicio (instalacion)</Label>
@@ -956,7 +1404,7 @@ export default function Cotizaciones() {
 
             <div>
               <Label>Pago parcial</Label>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "0.55rem" }}>
+              <ToggleRow>
                 <input
                   type="checkbox"
                   checked={usaAnticipo}
@@ -981,12 +1429,12 @@ export default function Cotizaciones() {
                   }}
                 />
                 <span>Permitir 50% inicial / 50% restante</span>
-              </div>
+              </ToggleRow>
             </div>
           </Grid>
 
           {usaAnticipo && (
-            <div style={{ marginTop: "0.8rem" }}>
+            <Section>
               <Label>Datos de cuenta de la empresa (donde deposita el cliente)</Label>
               <Grid>
                 <div>
@@ -1014,10 +1462,10 @@ export default function Cotizaciones() {
                   />
                 </div>
               </Grid>
-              <p style={{ margin: "0.35rem 0 0", fontSize: "0.82rem", opacity: 0.8 }}>
+              <MutedText>
                 Estos datos son de ORIS79E Services para recibir el pago inicial del 50%.
-              </p>
-            </div>
+              </MutedText>
+            </Section>
           )}
 
           <TotalsCard>
@@ -1052,82 +1500,142 @@ export default function Cotizaciones() {
           </TotalsCard>
         </Section>
 
-        <Button type="submit" style={{ marginTop: "1rem" }}>
-          Guardar cotizacion
-        </Button>
+        <SubmitRow>
+          <Button type="submit">Guardar cotizacion</Button>
+        </SubmitRow>
       </FormCard>
 
-      <h3>Historial de cotizaciones</h3>
-      <TableWrap>
-        <Table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Cliente</th>
-              <th>Servicio</th>
-              <th>Ticket</th>
-              <th>Total</th>
-              <th>Estado</th>
-              <th>Anticipo</th>
-              <th>Fecha</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {cotizaciones.map((c) => (
-              <tr key={c.id}>
-                <td>{c.id}</td>
-                <td>{c.cliente}</td>
-                <td>{c.servicio}</td>
-                <td>{c.solicitud_id ? `#${c.solicitud_id}` : "-"}</td>
-                <td>
-                  RD$
-                  {toNumber(c.total).toLocaleString("es-DO", {
-                    minimumFractionDigits: 2,
-                  })}
-                </td>
-                <td>
-                  <EstadoBadge estado={c.estado || "pendiente"}>
-                    {formatearEstado(c.estado)}
-                  </EstadoBadge>
-                </td>
-                <td>
-                  {c.usa_anticipo
-                    ? `Inicial: RD$${toNumber(c.monto_anticipo).toFixed(2)} / Restante: RD$${toNumber(
-                        c.monto_pendiente
-                      ).toFixed(2)}${
-                        c.banco_cuenta_banco
-                          ? ` / Banco: ${c.banco_cuenta_banco}`
-                          : ""
-                      }${
-                        c.nombre_cuenta_banco
-                          ? ` / Titular: ${c.nombre_cuenta_banco}`
-                          : ""
-                      }${
-                        c.numero_cuenta_banco
-                          ? ` / Cuenta: ${c.numero_cuenta_banco}`
-                          : ""
-                      }`
-                    : "No"}
-                </td>
-                <td>{new Date(c.fecha).toLocaleDateString()}</td>
-                <td style={{ display: "flex", gap: "0.5rem" }}>
-                  <Eye
-                    size={18}
-                    style={{ cursor: "pointer", color: "#00bcd4" }}
-                    onClick={() => navigate(`/admin/cotizaciones/${c.id}`)}
-                  />
-                  <Trash2
-                    size={18}
-                    className="delete-btn"
-                    onClick={() => eliminarCotizacion(c.id)}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </TableWrap>
+      <Section>
+        <HistoryTitle>Historial de cotizaciones</HistoryTitle>
+
+        <DesktopOnly>
+          <TableWrap>
+            <Table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Cliente</th>
+                  <th>Servicio</th>
+                  <th>Ticket</th>
+                  <th>Total</th>
+                  <th>Estado</th>
+                  <th>Anticipo</th>
+                  <th>Fecha</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cotizaciones.length === 0 ? (
+                  <tr>
+                    <td colSpan={9}>No hay cotizaciones registradas.</td>
+                  </tr>
+                ) : (
+                  cotizaciones.map((c) => (
+                    <tr key={c.id}>
+                      <td>{c.id}</td>
+                      <td>{c.cliente}</td>
+                      <td>{c.servicio}</td>
+                      <td>{c.solicitud_id ? `#${c.solicitud_id}` : "-"}</td>
+                      <td>
+                        RD$
+                        {toNumber(c.total).toLocaleString("es-DO", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </td>
+                      <td>
+                        <EstadoBadge estado={c.estado || "pendiente"}>
+                          {formatearEstado(c.estado)}
+                        </EstadoBadge>
+                      </td>
+                      <td>{textoAnticipo(c)}</td>
+                      <td>{new Date(c.fecha).toLocaleDateString()}</td>
+                      <td>
+                        <HistoryActions>
+                          <IconCircleButton
+                            type="button"
+                            title="Ver cotizacion"
+                            onClick={() => navigate(`/admin/cotizaciones/${c.id}`)}
+                          >
+                            <Eye size={16} />
+                          </IconCircleButton>
+                          <DeleteIconButton
+                            type="button"
+                            title="Eliminar cotizacion"
+                            onClick={() => eliminarCotizacion(c.id)}
+                          >
+                            <Trash2 size={16} />
+                          </DeleteIconButton>
+                        </HistoryActions>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          </TableWrap>
+        </DesktopOnly>
+
+        <MobileOnly>
+          {cotizaciones.length === 0 ? (
+            <MutedText>No hay cotizaciones registradas.</MutedText>
+          ) : (
+            <LineCardList>
+              {cotizaciones.map((c) => (
+                <HistoryCard key={c.id}>
+                  <LineTop>
+                    <LineTitle>
+                      #{c.id} - {c.cliente || "Sin cliente"}
+                    </LineTitle>
+                    <EstadoBadge estado={c.estado || "pendiente"}>
+                      {formatearEstado(c.estado)}
+                    </EstadoBadge>
+                  </LineTop>
+
+                  <HistoryRow>
+                    <span>Servicio</span>
+                    <strong>{c.servicio || "-"}</strong>
+                  </HistoryRow>
+                  <HistoryRow>
+                    <span>Ticket</span>
+                    <strong>{c.solicitud_id ? `#${c.solicitud_id}` : "-"}</strong>
+                  </HistoryRow>
+                  <HistoryRow>
+                    <span>Total</span>
+                    <strong>
+                      RD$
+                      {toNumber(c.total).toLocaleString("es-DO", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </strong>
+                  </HistoryRow>
+                  <HistoryRow>
+                    <span>Fecha</span>
+                    <strong>{new Date(c.fecha).toLocaleDateString()}</strong>
+                  </HistoryRow>
+                  <LineMeta>{textoAnticipo(c)}</LineMeta>
+
+                  <HistoryActions>
+                    <IconCircleButton
+                      type="button"
+                      title="Ver cotizacion"
+                      onClick={() => navigate(`/admin/cotizaciones/${c.id}`)}
+                    >
+                      <Eye size={16} />
+                    </IconCircleButton>
+                    <DeleteIconButton
+                      type="button"
+                      title="Eliminar cotizacion"
+                      onClick={() => eliminarCotizacion(c.id)}
+                    >
+                      <Trash2 size={16} />
+                    </DeleteIconButton>
+                  </HistoryActions>
+                </HistoryCard>
+              ))}
+            </LineCardList>
+          )}
+        </MobileOnly>
+      </Section>
     </Wrapper>
   );
 }

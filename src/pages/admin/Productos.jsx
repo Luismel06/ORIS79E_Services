@@ -549,30 +549,6 @@ export default function Productos() {
       {/* === FORMULARIO === */}
       {(adding || editingId !== null) && (
         <Form onSubmit={editingId ? onUpdate : onCreate}>
-          <Input
-            placeholder="Nombre del producto"
-            value={form.nombre}
-            onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-          />
-          <Input
-            placeholder="Proveedor"
-            value={form.proveedor}
-            onChange={(e) => setForm({ ...form, proveedor: e.target.value })}
-          />
-          <Input
-            placeholder="Cantidad"
-            type="number"
-            value={form.cantidad}
-            onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
-          />
-          <Input
-            placeholder="Precio (RD$)"
-            type="number"
-            step="0.01"
-            value={form.precio}
-            onChange={(e) => setForm({ ...form, precio: e.target.value })}
-          />
-
           <Field>
             <Label>Categoría</Label>
             <Input
@@ -580,6 +556,26 @@ export default function Productos() {
               value={categoria}
               onChange={(e) => setCategoria(e.target.value)}
               placeholder="Ej: Cámaras, NVR, Cableado, Tubos…"
+            />
+          </Field>
+
+          <Field>
+            <Label>Modelo (opcional)</Label>
+            <Input
+              type="text"
+              value={modelo}
+              onChange={(e) => setModelo(e.target.value)}
+              placeholder="Ej: DS-2CD1043G0-I"
+            />
+          </Field>
+
+          <Field>
+            <Label>Descripcion</Label>
+            <Input
+              type="text"
+              value={form.nombre}
+              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              placeholder="Ej: Camara IP 4MP exterior"
             />
           </Field>
 
@@ -594,12 +590,33 @@ export default function Productos() {
           </Field>
 
           <Field>
-            <Label>Modelo (opcional)</Label>
+            <Label>Proveedor</Label>
             <Input
               type="text"
-              value={modelo}
-              onChange={(e) => setModelo(e.target.value)}
-              placeholder="Ej: DS-2CD1043G0-I"
+              value={form.proveedor}
+              onChange={(e) => setForm({ ...form, proveedor: e.target.value })}
+              placeholder="Nombre del proveedor"
+            />
+          </Field>
+
+          <Field>
+            <Label>Cantidad</Label>
+            <Input
+              type="number"
+              value={form.cantidad}
+              onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
+              placeholder="Cantidad"
+            />
+          </Field>
+
+          <Field>
+            <Label>Precio (RD$)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={form.precio}
+              onChange={(e) => setForm({ ...form, precio: e.target.value })}
+              placeholder="0.00"
             />
           </Field>
 
@@ -624,11 +641,11 @@ export default function Productos() {
           <Table>
             <thead>
               <tr>
-                <th>Nombre</th>
-                <th>Proveedor</th>
                 <th>Categoría</th>
-                <th>Marca</th>
                 <th>Modelo</th>
+                <th>Descripcion</th>
+                <th>Marca</th>
+                <th>Proveedor</th>
                 <th>Cantidad</th>
                 <th>Precio</th>
                 <th>Acciones</th>
@@ -637,11 +654,11 @@ export default function Productos() {
             <tbody>
               {filtered.map((p) => (
                 <tr key={p.id}>
-                  <td>{p.nombre}</td>
-                  <td>{p.proveedor}</td>
                   <td>{p.categoria || "-"}</td>
-                  <td>{p.marca || "-"}</td>
                   <td>{p.modelo || "-"}</td>
+                  <td>{p.nombre}</td>
+                  <td>{p.marca || "-"}</td>
+                  <td>{p.proveedor}</td>
                   <td>{p.cantidad}</td>
                   <td>
                     RD$

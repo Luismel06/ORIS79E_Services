@@ -9,17 +9,17 @@ import Swal from "sweetalert2";
 import { useAuthStore } from "../../store/useAuthStore.jsx";
 
 const Wrapper = styled.div`
-  padding: 2rem;
+  padding: clamp(0.7rem, 2vw, 1.4rem);
   display: flex;
   justify-content: center;
 `;
 
 const Card = styled.div`
   width: 100%;
-  max-width: 750px;
+  max-width: 860px;
   background: ${({ theme }) => theme.cardBackground};
-  padding: 2rem;
-  border-radius: 12px;
+  padding: clamp(1rem, 2vw, 1.8rem);
+  border-radius: 14px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
 `;
 
@@ -27,6 +27,12 @@ const Title = styled.h1`
   text-align: center;
   margin-bottom: 0.5rem;
   color: ${({ theme }) => theme.accent};
+`;
+
+const Subtitle = styled.p`
+  text-align: center;
+  opacity: 0.8;
+  margin: 0 0 0.4rem;
 `;
 
 const SectionTitle = styled.h3`
@@ -42,13 +48,27 @@ const InfoRow = styled.div`
   margin: 0.4rem 0;
   display: flex;
   justify-content: space-between;
-  font-size: 1rem;
+  font-size: 0.97rem;
+  gap: 1rem;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+`;
+
+const TableWrap = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 10px;
 `;
 
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   margin-top: 1rem;
+  min-width: 600px;
 
   th,
   td {
@@ -73,7 +93,13 @@ const TotalRow = styled.div`
   display: flex;
   justify-content: space-between;
   margin: 0.4rem 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  gap: 1rem;
+
+  @media (max-width: 560px) {
+    flex-direction: column;
+    gap: 0.2rem;
+  }
 `;
 
 const Strong = styled.span`
@@ -101,6 +127,154 @@ const Button = styled.button`
     opacity: 0.9;
     transform: scale(1.02);
   }
+`;
+
+const ActionRow = styled.div`
+  display: flex;
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+  flex-wrap: wrap;
+`;
+
+const ActionChip = styled.button`
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: ${({ $color }) => $color || "#0b1b2b"};
+  background: ${({ $background }) => $background || "rgba(0, 188, 212, 0.18)"};
+`;
+
+const EditHint = styled.p`
+  font-size: 0.9rem;
+  opacity: 0.75;
+  margin-bottom: 0.8rem;
+`;
+
+const EditGroup = styled.div`
+  margin-bottom: 1rem;
+`;
+
+const EditLine = styled.div`
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 10px;
+  padding: 0.65rem;
+  background: ${({ theme }) => theme.inputBackground};
+  display: grid;
+  grid-template-columns: 1.6fr 1.1fr 1fr 1.8fr 1fr 1.2fr 0.85fr 1fr auto;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  align-items: end;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  @media (max-width: 980px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 760px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const EditField = styled.div`
+  min-width: 0;
+`;
+
+const EditFieldLabel = styled.span`
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 600;
+  opacity: 0.72;
+  margin-bottom: 0.25rem;
+`;
+
+const BasicSelect = styled.select`
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.border};
+  background: ${({ theme }) => theme.cardBackground};
+  color: ${({ theme }) => theme.text};
+  text-overflow: ellipsis;
+`;
+
+const BasicInput = styled.input`
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.border};
+  background: ${({ theme }) => theme.cardBackground};
+  color: ${({ theme }) => theme.text};
+`;
+
+const DeleteLineButton = styled.button`
+  background: transparent;
+  border: 1px solid rgba(192, 57, 43, 0.35);
+  color: #c0392b;
+  cursor: pointer;
+  border-radius: 8px;
+  min-width: 42px;
+  min-height: 38px;
+  width: 100%;
+`;
+
+const AddLineButton = styled.button`
+  margin-top: 0.7rem;
+  background: ${({ theme }) => theme.accent};
+  color: #fff;
+  border: none;
+  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+
+  @media (max-width: 560px) {
+    width: 100%;
+  }
+`;
+
+const EditLineTools = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  @media (max-width: 560px) {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+`;
+
+const EditFields = styled.div`
+  display: grid;
+  gap: 0.6rem;
+`;
+
+const EditLabel = styled.label`
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+`;
+
+const SignatureBlock = styled.div`
+  margin-top: 2rem;
+`;
+
+const PdfButtons = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
 `;
 
 const EstadoBadge = styled.span`
@@ -169,6 +343,30 @@ function formatRD(value) {
   })}`;
 }
 
+function getDetalleDescripcion(item) {
+  return item?.nombre_producto || item?.producto?.nombre || "-";
+}
+
+function getDetalleReferencia(item, index = 0) {
+  const modelo = String(item?.modelo || item?.producto?.modelo || "").trim();
+  const modeloNormalizado = modelo.toLowerCase();
+  if (
+    modelo &&
+    modeloNormalizado !== "sin modelo" &&
+    modeloNormalizado !== "n/a" &&
+    modeloNormalizado !== "na" &&
+    modeloNormalizado !== "-"
+  ) {
+    return modelo;
+  }
+  return item?.producto_id ? `PROD-${item.producto_id}` : `ITEM-${index + 1}`;
+}
+
+function toNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
   useEffect(() => {
     fetchCotizacion();
   }, []);
@@ -193,7 +391,9 @@ function formatRD(value) {
           .from("detalle_cotizacion")
           .select("*")
           .eq("cotizacion_id", id),
-        supabase.from("productos").select("id, nombre, precio, categoria, marca, modelo"),
+        supabase
+          .from("productos")
+          .select("id, nombre, precio, categoria, modelo, marca, proveedor"),
       ]);
 
     const detalleBase = items && items.length > 0 ? items : detLegacy || [];
@@ -220,6 +420,10 @@ function formatRD(value) {
         subtotal,
         precio_unitario: precioUnit,
         nombre_producto: d.nombre_producto || producto?.nombre || "-",
+        categoria: d.categoria || producto?.categoria || null,
+        modelo: d.modelo || producto?.modelo || null,
+        marca: d.marca || producto?.marca || null,
+        proveedor: d.proveedor || producto?.proveedor || null,
         producto,
       };
     });
@@ -234,12 +438,19 @@ function formatRD(value) {
       setEditDescuento(Number(cot.descuento || 0));
     }
 
-    const editDet = (detalleConProducto || [])
-      .filter((d) => d.producto_id)
-      .map((d) => ({
-        producto_id: d.producto_id,
-        cantidad: Number(d.cantidad || 0),
-      }));
+    const editDet = (detalleConProducto || []).map((d) => ({
+      producto_id: d.producto_id || null,
+      categoria: d.categoria || d.producto?.categoria || "",
+      modelo: d.modelo || d.producto?.modelo || "",
+      descripcion: getDetalleDescripcion(d),
+      marca: d.marca || d.producto?.marca || "",
+      proveedor: d.proveedor || d.producto?.proveedor || "",
+      cantidad: Number(d.cantidad || 1),
+      precio_unitario:
+        d.precio_unitario != null
+          ? Number(d.precio_unitario)
+          : Number(d.subtotal || 0) / Number(d.cantidad || 1),
+    }));
     setEditDetalle(editDet);
 
     // 🔗 Si la cotización tiene solicitud_id, cargamos la solicitud
@@ -267,9 +478,6 @@ function formatRD(value) {
   const descuentoPct = cotizacion ? Number(cotizacion.descuento || 0) : 0;
   const descuentoMonto = (base * descuentoPct) / 100;
   const total = base + itebis - descuentoMonto;
-  const tieneLineasManuales = detalle.some(
-    (d) => !d.producto_id && String(d.nombre_producto || "").trim() !== ""
-  );
 
   // Estos solo se usan en el PDF de plan 50/50
   const inicial50 = total * 0.5;
@@ -284,6 +492,32 @@ function formatRD(value) {
     ? String(cotizacion.banco_cuenta_banco || BANCO_EMPRESA || "").trim()
     : "";
   // -------------------------------------------
+
+  const clienteNombreVista =
+    (solicitud?.tipo_cliente === "empresa" && solicitud?.empresa_nombre) ||
+    solicitud?.cliente ||
+    cotizacion?.cliente ||
+    "-";
+  const clienteDireccionVista =
+    solicitud?.direccion || cotizacion?.cliente_direccion || "-";
+  const clienteCiudadVista = solicitud?.ciudad || cotizacion?.cliente_ciudad || "-";
+  const clienteSectorVista = solicitud?.sector || cotizacion?.cliente_sector || "-";
+  const clienteTelefonoVista =
+    solicitud?.telefono || cotizacion?.cliente_telefono || "-";
+  const clienteEmailVista = solicitud?.email || cotizacion?.cliente_email || "-";
+  const clienteDocumentoLabelVista =
+    solicitud?.tipo_cliente === "empresa"
+      ? "RNC"
+      : solicitud?.tipo_cliente === "persona"
+      ? "Cedula"
+      : "RNC/Cedula";
+  const clienteDocumentoVista =
+    solicitud?.tipo_cliente === "empresa"
+      ? solicitud?.empresa_rnc || cotizacion?.cliente_documento || "-"
+      : solicitud?.cedula ||
+        solicitud?.empresa_rnc ||
+        cotizacion?.cliente_documento ||
+        "-";
 
   // -------------- CAMBIO DE ESTADO + STOCK -----------------
   async function cambiarEstado(nuevoEstado) {
@@ -433,26 +667,14 @@ function formatRD(value) {
     });
     const usuarioDoc = user?.email || "Administrador";
 
-    const clienteNombre =
-      (solicitud?.tipo_cliente === "empresa" && solicitud?.empresa_nombre) ||
-      solicitud?.cliente ||
-      cotizacion?.cliente ||
-      "-";
-    const clienteDireccion = solicitud?.direccion || "-";
-    const clienteCiudad = solicitud?.ciudad || "-";
-    const clienteSector = solicitud?.sector || "-";
-    const clienteTelefono = solicitud?.telefono || "-";
-    const clienteEmail = solicitud?.email || "-";
-    const clienteDocumentoLabel =
-      solicitud?.tipo_cliente === "empresa"
-        ? "RNC"
-        : solicitud?.tipo_cliente === "persona"
-        ? "Cedula"
-        : "RNC/Cedula";
-    const clienteDocumento =
-      solicitud?.tipo_cliente === "empresa"
-        ? solicitud?.empresa_rnc || "-"
-        : solicitud?.cedula || solicitud?.empresa_rnc || "-";
+    const clienteNombre = clienteNombreVista;
+    const clienteDireccion = clienteDireccionVista;
+    const clienteCiudad = clienteCiudadVista;
+    const clienteSector = clienteSectorVista;
+    const clienteTelefono = clienteTelefonoVista;
+    const clienteEmail = clienteEmailVista;
+    const clienteDocumentoLabel = clienteDocumentoLabelVista;
+    const clienteDocumento = clienteDocumentoVista;
 
     let y = 40;
 
@@ -538,15 +760,12 @@ function formatRD(value) {
       const itbsUnit = precioBruto * itbsRate;
       const precioConItbs = precioBruto + itbsUnit;
       const subtotalConItbs = precioConItbs * cantidad;
-      const referencia =
-        d.producto?.modelo ||
-        d.modelo ||
-        (d.producto_id ? `PROD-${d.producto_id}` : `ITEM-${index + 1}`);
+      const referencia = getDetalleReferencia(d, index);
 
       return {
         cantidad,
         referencia,
-        descripcion: d.nombre_producto || d.producto?.nombre || "-",
+        descripcion: getDetalleDescripcion(d),
         precioBruto,
         itbsUnit,
         precioConItbs,
@@ -770,31 +989,15 @@ function formatRD(value) {
       `Correo electrónico: ${EMPRESA.email}`,
     ];
 
-    // Tomar datos desde la solicitud (ticket) cuando existan
-const clienteNombre =
-  (solicitud?.tipo_cliente === "empresa" &&
-    solicitud?.empresa_nombre) ||
-  solicitud?.cliente ||
-  cotizacion.cliente ||
-  "-";
-
-const clienteRnc =
-  (solicitud?.tipo_cliente === "empresa" && solicitud?.empresa_rnc) ||
-  solicitud?.cedula ||
-  solicitud?.empresa_rnc ||
-  "-";
-
-const clienteDireccion = solicitud?.direccion || "-";
-const clienteTelefono = solicitud?.telefono || "-";
-const clienteCorreo = solicitud?.email || "-";
-
-const clienteLines = [
-  `Nombre o razón social: ${clienteNombre}`,
-  `RNC / ID: ${clienteRnc}`,
-  `Dirección: ${clienteDireccion}`,
-  `Teléfono: ${clienteTelefono}`,
-  `Correo electrónico: ${clienteCorreo}`,
-];
+    const clienteLines = [
+      `Nombre o razón social: ${clienteNombreVista}`,
+      `RNC / ID: ${clienteDocumentoVista}`,
+      `Dirección: ${clienteDireccionVista}`,
+      `Ciudad: ${clienteCiudadVista}`,
+      `Sector: ${clienteSectorVista}`,
+      `Teléfono: ${clienteTelefonoVista}`,
+      `Correo electrónico: ${clienteEmailVista}`,
+    ];
 
 
     const lineHeight = 14;
@@ -807,7 +1010,8 @@ const clienteLines = [
       doc.text(line, 320, y + idx * lineHeight);
     });
 
-    const tableY = y + proveedorLines.length * lineHeight + 20;
+    const tableY =
+      y + Math.max(proveedorLines.length, clienteLines.length) * lineHeight + 20;
 
     // TABLA DE ITEMS
     const body = detalle.map((d, index) => {
@@ -816,8 +1020,8 @@ const clienteLines = [
       const unit = cantidad > 0 ? subtotal / cantidad : 0;
 
       return [
-        `#${d.producto_id || index + 1}`,
-        d.nombre_producto || d.producto?.nombre || "-",
+        getDetalleReferencia(d, index),
+        getDetalleDescripcion(d),
         cantidad,
         formatMoney(unit),
         formatMoney(subtotal),
@@ -931,6 +1135,19 @@ const clienteLines = [
 
   // =============== LÓGICA DE EDICIÓN (igual que antes) ===============
 
+  function crearLineaDesdeProducto(producto) {
+    return {
+      producto_id: producto?.id || null,
+      categoria: producto?.categoria || "",
+      modelo: producto?.modelo || "",
+      descripcion: producto?.nombre || "",
+      marca: producto?.marca || "",
+      proveedor: producto?.proveedor || "",
+      cantidad: 1,
+      precio_unitario: toNumber(producto?.precio),
+    };
+  }
+
   function agregarLineaProducto() {
     if (!productos || productos.length === 0) {
       Swal.fire(
@@ -945,24 +1162,72 @@ const clienteLines = [
 
     setEditDetalle((prev) => [
       ...prev,
-      { producto_id: primerProducto.id, cantidad: 1 },
+      crearLineaDesdeProducto(primerProducto),
+    ]);
+  }
+
+  function agregarLineaManual() {
+    setEditDetalle((prev) => [
+      ...prev,
+      {
+        producto_id: null,
+        categoria: "",
+        modelo: "",
+        descripcion: "",
+        marca: "",
+        proveedor: "",
+        cantidad: 1,
+        precio_unitario: 0,
+      },
     ]);
   }
 
   function actualizarLinea(index, campo, valor) {
     setEditDetalle((prev) =>
       prev.map((item, i) =>
-        i === index
-          ? {
-              ...item,
-              [campo]:
-                campo === "cantidad"
-                  ? Number(valor) < 1
-                    ? 1
-                    : Number(valor)
-                  : valor,
-            }
-          : item
+        i !== index
+          ? item
+          : (() => {
+              if (campo === "producto_id") {
+                const idProducto = Number(valor);
+                if (!Number.isFinite(idProducto) || idProducto <= 0) {
+                  return { ...item, producto_id: null };
+                }
+
+                const prod = productos.find((p) => p.id === idProducto);
+                if (!prod) {
+                  return { ...item, producto_id: idProducto };
+                }
+
+                return {
+                  ...item,
+                  producto_id: idProducto,
+                  categoria: prod.categoria || item.categoria || "",
+                  modelo: prod.modelo || item.modelo || "",
+                  descripcion: prod.nombre || item.descripcion || "",
+                  marca: prod.marca || item.marca || "",
+                  proveedor: prod.proveedor || item.proveedor || "",
+                  precio_unitario:
+                    toNumber(prod.precio) || toNumber(item.precio_unitario),
+                };
+              }
+
+              if (campo === "cantidad") {
+                return {
+                  ...item,
+                  cantidad: Math.max(1, toNumber(valor) || 1),
+                };
+              }
+
+              if (campo === "precio_unitario") {
+                return {
+                  ...item,
+                  precio_unitario: Math.max(0, toNumber(valor)),
+                };
+              }
+
+              return { ...item, [campo]: valor };
+            })()
       )
     );
   }
@@ -971,16 +1236,50 @@ const clienteLines = [
     setEditDetalle((prev) => prev.filter((_, i) => i !== index));
   }
 
+  async function insertarItemsCotizacionConFallback(detallesAInsertar) {
+    if (!Array.isArray(detallesAInsertar) || detallesAInsertar.length === 0) {
+      return { error: null, columnasRemovidas: [] };
+    }
+
+    let payload = detallesAInsertar.map((d) => ({
+      cotizacion_id: Number(id),
+      ...d,
+    }));
+    const columnasCompat = ["categoria", "modelo", "marca", "proveedor"];
+    const columnasRemovidas = [];
+    let ultimoError = null;
+
+    for (let intento = 0; intento <= columnasCompat.length; intento++) {
+      const { error } = await supabase.from("cotizacion_items").insert(payload);
+      if (!error) {
+        return { error: null, columnasRemovidas };
+      }
+
+      ultimoError = error;
+      const msg = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+
+      if (!msg.includes("column")) break;
+
+      const faltante = columnasCompat.find(
+        (col) =>
+          msg.includes(col) &&
+          payload.some((item) => Object.prototype.hasOwnProperty.call(item, col))
+      );
+      if (!faltante) break;
+
+      payload = payload.map((item) => {
+        const clone = { ...item };
+        delete clone[faltante];
+        return clone;
+      });
+      columnasRemovidas.push(faltante);
+    }
+
+    return { error: ultimoError, columnasRemovidas };
+  }
+
   async function guardarEdicion() {
     if (!cotizacion) return;
-    if (tieneLineasManuales) {
-      Swal.fire(
-        "Edicion limitada",
-        "Esta cotizacion tiene lineas manuales. Editala desde la pantalla de creacion para evitar perder datos.",
-        "warning"
-      );
-      return;
-    }
 
     if (cotizacion.estado === "aceptada") {
       Swal.fire(
@@ -1004,14 +1303,6 @@ const clienteLines = [
     }
 
     for (const item of editDetalle) {
-      if (!item.producto_id) {
-        Swal.fire(
-          "Producto inválido",
-          "Hay una línea sin producto seleccionado.",
-          "warning"
-        );
-        return;
-      }
       if (!item.cantidad || Number(item.cantidad) <= 0) {
         Swal.fire(
           "Cantidad inválida",
@@ -1026,15 +1317,38 @@ const clienteLines = [
     const detallesAInsertar = [];
 
     for (const item of editDetalle) {
-      const prod = productos.find((p) => p.id === item.producto_id);
-      const price = prod ? Number(prod.precio) : 0;
-      const cant = Number(item.cantidad || 0);
-      const sub = price * cant;
+      const descripcion = String(item.descripcion || "").trim();
+      const cant = Math.max(1, toNumber(item.cantidad));
+      const price = Math.max(0, toNumber(item.precio_unitario));
+
+      if (!descripcion) {
+        Swal.fire(
+          "Descripcion requerida",
+          "Cada linea debe tener una descripcion.",
+          "warning"
+        );
+        return;
+      }
+
+      if (price <= 0) {
+        Swal.fire(
+          "Precio inválido",
+          "El precio unitario debe ser mayor que cero.",
+          "warning"
+        );
+        return;
+      }
+
+      const sub = cant * price;
       subtotalProd += sub;
 
       detallesAInsertar.push({
-        producto_id: item.producto_id,
-        nombre_producto: prod?.nombre || "Producto",
+        producto_id: item.producto_id || null,
+        nombre_producto: descripcion,
+        categoria: item.categoria?.trim() || null,
+        modelo: item.modelo?.trim() || null,
+        marca: item.marca?.trim() || null,
+        proveedor: item.proveedor?.trim() || null,
         cantidad: cant,
         precio_unitario: price,
         subtotal: sub,
@@ -1091,14 +1405,10 @@ const clienteLines = [
     }
 
     if (detallesAInsertar.length > 0) {
-      const { error: errInsertItems } = await supabase
-        .from("cotizacion_items")
-        .insert(
-          detallesAInsertar.map((d) => ({
-            cotizacion_id: Number(id),
-            ...d,
-          }))
-        );
+      const {
+        error: errInsertItems,
+        columnasRemovidas: columnasItemsRemovidas,
+      } = await insertarItemsCotizacionConFallback(detallesAInsertar);
 
       if (errInsertItems) {
         console.error(errInsertItems);
@@ -1108,6 +1418,14 @@ const clienteLines = [
           "error"
         );
         return;
+      }
+
+      if (columnasItemsRemovidas.length > 0) {
+        console.warn(
+          `Faltan columnas en cotizacion_items (${columnasItemsRemovidas.join(
+            ", "
+          )}). Ejecuta las migraciones SQL.`
+        );
       }
 
       const detalleLegacy = detallesAInsertar
@@ -1148,9 +1466,9 @@ const clienteLines = [
     <Wrapper>
       <Card>
         <Title>ORIS79E SERVICES</Title>
-        <p style={{ textAlign: "center", opacity: 0.8 }}>
+        <Subtitle>
           {formatearEstado(cotizacion.estado)} - #{cotizacion.id}
-        </p>
+        </Subtitle>
 
         <SectionTitle>Informacion del Cliente</SectionTitle>
 
@@ -1158,7 +1476,49 @@ const clienteLines = [
           <span>
             <Strong>Cliente:</Strong>
           </span>
-          <span>{cotizacion.cliente}</span>
+          <span>{clienteNombreVista}</span>
+        </InfoRow>
+
+        <InfoRow>
+          <span>
+            <Strong>Direccion:</Strong>
+          </span>
+          <span>{clienteDireccionVista}</span>
+        </InfoRow>
+
+        <InfoRow>
+          <span>
+            <Strong>Ciudad:</Strong>
+          </span>
+          <span>{clienteCiudadVista}</span>
+        </InfoRow>
+
+        <InfoRow>
+          <span>
+            <Strong>{clienteDocumentoLabelVista}:</Strong>
+          </span>
+          <span>{clienteDocumentoVista}</span>
+        </InfoRow>
+
+        <InfoRow>
+          <span>
+            <Strong>Tel:</Strong>
+          </span>
+          <span>{clienteTelefonoVista}</span>
+        </InfoRow>
+
+        <InfoRow>
+          <span>
+            <Strong>Sector:</Strong>
+          </span>
+          <span>{clienteSectorVista}</span>
+        </InfoRow>
+
+        <InfoRow>
+          <span>
+            <Strong>Email:</Strong>
+          </span>
+          <span>{clienteEmailVista}</span>
         </InfoRow>
 
         <InfoRow>
@@ -1189,84 +1549,41 @@ const clienteLines = [
         </InfoRow>
 
         {/* BOTONES ESTADO + EDITAR */}
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            marginTop: "10px",
-            flexWrap: "wrap",
-          }}
-        >
-          <button
+        <ActionRow>
+          <ActionChip
             onClick={() => cambiarEstado("aceptada")}
-            style={{
-              background: "rgba(46,204,113,0.2)",
-              color: "#27ae60",
-              border: "none",
-              padding: "6px 12px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
+            $background="rgba(46, 204, 113, 0.2)"
+            $color="#27ae60"
           >
             Aceptar
-          </button>
+          </ActionChip>
 
-          <button
+          <ActionChip
             onClick={() => cambiarEstado("rechazada")}
-            style={{
-              background: "rgba(231,76,60,0.2)",
-              color: "#c0392b",
-              border: "none",
-              padding: "6px 12px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
+            $background="rgba(231, 76, 60, 0.2)"
+            $color="#c0392b"
           >
             Rechazar
-          </button>
+          </ActionChip>
 
-          <button
+          <ActionChip
             onClick={() => cambiarEstado("pendiente")}
-            style={{
-              background: "rgba(241,196,15,0.2)",
-              color: "#b7950b",
-              border: "none",
-              padding: "6px 12px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
+            $background="rgba(241, 196, 15, 0.2)"
+            $color="#b7950b"
           >
             Pendiente
-          </button>
+          </ActionChip>
 
-          <button
+          <ActionChip
             onClick={() => {
-              if (!editMode && tieneLineasManuales) {
-                Swal.fire(
-                  "Edicion limitada",
-                  "Esta cotizacion usa conceptos manuales. Por ahora la edicion se hace desde la pantalla de creacion.",
-                  "info"
-                );
-                return;
-              }
               setEditMode((prev) => !prev);
             }}
-            style={{
-              background: "#00bcd4",
-              color: "white",
-              border: "none",
-              padding: "6px 12px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontWeight: 600,
-            }}
+            $background="#00bcd4"
+            $color="#fff"
           >
             {editMode ? "Cancelar edicion" : "Editar cotizacion"}
-          </button>
-        </div>
+          </ActionChip>
+        </ActionRow>
 
         <InfoRow>
           <span>
@@ -1304,162 +1621,213 @@ const clienteLines = [
 
         <SectionTitle>Conceptos Cotizados</SectionTitle>
 
-        <Table>
-          <thead>
-            <tr>
-              <th>Concepto</th>
-              <th>Cantidad</th>
-              <th>Precio</th>
-              <th>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {detalle.map((d, i) => {
-              const cantidad = Number(d.cantidad || 0);
-              const subtotal = Number(d.subtotal || 0);
-              const precioUnit = cantidad > 0 ? subtotal / cantidad : 0;
-
-              return (
-                <tr key={i}>
-                  <td>{d.nombre_producto || d.producto?.nombre || "-"}</td>
-                  <td>{cantidad}</td>
-                  <td>RD${precioUnit.toFixed(2)}</td>
-                  <td>RD${subtotal.toFixed(2)}</td>
-                </tr>
-              );
-            })}
-            {servicioNum > 0 && (
+        <TableWrap>
+          <Table>
+            <thead>
               <tr>
-                <td>
-                  {cotizacion.nombre_servicio ||
-                    `Servicio: ${cotizacion.servicio || "Instalación"}`}
-                </td>
-                <td>1</td>
-                <td>RD${servicioNum.toFixed(2)}</td>
-                <td>RD${servicioNum.toFixed(2)}</td>
+                <th>Categoria</th>
+                <th>Modelo</th>
+                <th>Descripcion</th>
+                <th>Marca</th>
+                <th>Proveedor</th>
+                <th>Cantidad</th>
+                <th>Precio</th>
+                <th>Subtotal</th>
               </tr>
-            )}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {detalle.map((d, i) => {
+                const cantidad = Number(d.cantidad || 0);
+                const subtotal = Number(d.subtotal || 0);
+                const precioUnit = cantidad > 0 ? subtotal / cantidad : 0;
+
+                return (
+                  <tr key={i}>
+                    <td>{d.categoria || d.producto?.categoria || "-"}</td>
+                    <td>{d.modelo || d.producto?.modelo || "-"}</td>
+                    <td>{getDetalleDescripcion(d)}</td>
+                    <td>{d.marca || d.producto?.marca || "-"}</td>
+                    <td>{d.proveedor || d.producto?.proveedor || "-"}</td>
+                    <td>{cantidad}</td>
+                    <td>RD${precioUnit.toFixed(2)}</td>
+                    <td>RD${subtotal.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
+              {servicioNum > 0 && (
+                <tr>
+                  <td>-</td>
+                  <td>-</td>
+                  <td>
+                    {cotizacion.nombre_servicio ||
+                      `Servicio: ${cotizacion.servicio || "Instalación"}`}
+                  </td>
+                  <td>-</td>
+                  <td>-</td>
+                  <td>1</td>
+                  <td>RD${servicioNum.toFixed(2)}</td>
+                  <td>RD${servicioNum.toFixed(2)}</td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </TableWrap>
 
         {/* ======= BLOQUE EDICIÓN ======= */}
         {editMode && (
           <>
             <SectionTitle>Editar cotización</SectionTitle>
 
-            <p
-              style={{
-                fontSize: "0.9rem",
-                opacity: 0.75,
-                marginBottom: "0.8rem",
-              }}
-            >
+            <EditHint>
               Los cambios se aplican al guardar. No se permite editar cotizaciones
               aceptadas.
-            </p>
+            </EditHint>
 
-            <div style={{ marginBottom: "1rem" }}>
-              <strong>Productos:</strong>
+            <EditGroup>
+              <strong>Lineas de la cotizacion:</strong>
 
               {editDetalle.map((item, index) => (
-                <div
-                  key={index}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "2fr 1fr auto",
-                    gap: "0.5rem",
-                    marginTop: "0.5rem",
-                  }}
-                >
-                  <select
-                    value={item.producto_id || ""}
-                    onChange={(e) =>
-                      actualizarLinea(index, "producto_id", Number(e.target.value))
-                    }
-                    style={{
-                      padding: "0.4rem",
-                      borderRadius: "6px",
-                      border: "1px solid #ccc",
-                    }}
-                  >
-                    <option value="">Seleccione un producto</option>
-                    {productos.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nombre} - RD${p.precio}
-                      </option>
-                    ))}
-                  </select>
+                <EditLine key={index}>
+                  <EditField>
+                    <EditFieldLabel>Producto</EditFieldLabel>
+                    <BasicSelect
+                      value={item.producto_id || ""}
+                      onChange={(e) =>
+                        actualizarLinea(index, "producto_id", e.target.value)
+                      }
+                    >
+                      <option value="">Manual (sin producto ligado)</option>
+                      {productos.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {(p.categoria || "-")} | {(p.modelo || "-")} | {p.nombre} |{" "}
+                          {(p.marca || "-")} | {(p.proveedor || "-")} - RD${p.precio}
+                        </option>
+                      ))}
+                    </BasicSelect>
+                  </EditField>
 
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.cantidad}
-                    onChange={(e) =>
-                      actualizarLinea(index, "cantidad", e.target.value)
-                    }
-                    style={{
-                      padding: "0.4rem",
-                      borderRadius: "6px",
-                      border: "1px solid #ccc",
-                    }}
-                  />
+                  <EditField>
+                    <EditFieldLabel>Categoria</EditFieldLabel>
+                    <BasicInput
+                      type="text"
+                      value={item.categoria || ""}
+                      onChange={(e) =>
+                        actualizarLinea(index, "categoria", e.target.value)
+                      }
+                      placeholder="Categoria"
+                    />
+                  </EditField>
 
-                  <button
-                    type="button"
-                    onClick={() => eliminarLinea(index)}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "#c0392b",
-                      cursor: "pointer",
-                      fontSize: "1.1rem",
-                    }}
-                  >
-                    🗑
-                  </button>
-                </div>
+                  <EditField>
+                    <EditFieldLabel>Modelo</EditFieldLabel>
+                    <BasicInput
+                      type="text"
+                      value={item.modelo || ""}
+                      onChange={(e) =>
+                        actualizarLinea(index, "modelo", e.target.value)
+                      }
+                      placeholder="Modelo"
+                    />
+                  </EditField>
+
+                  <EditField>
+                    <EditFieldLabel>Descripcion</EditFieldLabel>
+                    <BasicInput
+                      type="text"
+                      value={item.descripcion || ""}
+                      onChange={(e) =>
+                        actualizarLinea(index, "descripcion", e.target.value)
+                      }
+                      placeholder="Descripcion"
+                    />
+                  </EditField>
+
+                  <EditField>
+                    <EditFieldLabel>Marca</EditFieldLabel>
+                    <BasicInput
+                      type="text"
+                      value={item.marca || ""}
+                      onChange={(e) =>
+                        actualizarLinea(index, "marca", e.target.value)
+                      }
+                      placeholder="Marca"
+                    />
+                  </EditField>
+
+                  <EditField>
+                    <EditFieldLabel>Proveedor</EditFieldLabel>
+                    <BasicInput
+                      type="text"
+                      value={item.proveedor || ""}
+                      onChange={(e) =>
+                        actualizarLinea(index, "proveedor", e.target.value)
+                      }
+                      placeholder="Proveedor"
+                    />
+                  </EditField>
+
+                  <EditField>
+                    <EditFieldLabel>Cantidad</EditFieldLabel>
+                    <BasicInput
+                      type="number"
+                      min="1"
+                      value={item.cantidad}
+                      onChange={(e) =>
+                        actualizarLinea(index, "cantidad", e.target.value)
+                      }
+                      placeholder="Cantidad"
+                    />
+                  </EditField>
+
+                  <EditField>
+                    <EditFieldLabel>Precio unitario</EditFieldLabel>
+                    <BasicInput
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.precio_unitario}
+                      onChange={(e) =>
+                        actualizarLinea(index, "precio_unitario", e.target.value)
+                      }
+                      placeholder="Precio"
+                    />
+                  </EditField>
+
+                  <EditField>
+                    <EditFieldLabel>Accion</EditFieldLabel>
+                    <DeleteLineButton
+                      type="button"
+                      onClick={() => eliminarLinea(index)}
+                    >
+                      Eliminar
+                    </DeleteLineButton>
+                  </EditField>
+                </EditLine>
               ))}
 
-              <button
-                type="button"
-                onClick={agregarLineaProducto}
-                style={{
-                  marginTop: "0.7rem",
-                  background: "#00bcd4",
-                  color: "white",
-                  border: "none",
-                  padding: "6px 12px",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  fontWeight: 600,
-                  fontSize: "0.9rem",
-                }}
-              >
-                + Agregar producto
-              </button>
-            </div>
+              <EditLineTools>
+                <AddLineButton type="button" onClick={agregarLineaProducto}>
+                  + Agregar desde catalogo
+                </AddLineButton>
+                <AddLineButton type="button" onClick={agregarLineaManual}>
+                  + Agregar linea manual
+                </AddLineButton>
+              </EditLineTools>
+            </EditGroup>
 
-            <div style={{ display: "grid", gap: "0.6rem" }}>
+            <EditFields>
               <div>
-                <label style={{ fontSize: "0.9rem" }}>
-                  Descripción del servicio:
-                </label>
-                <input
+                <EditLabel>Descripción del servicio:</EditLabel>
+                <BasicInput
                   type="text"
                   value={editNombreServicio}
                   onChange={(e) => setEditNombreServicio(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "0.5rem",
-                    borderRadius: "6px",
-                    border: "1px solid #ccc",
-                  }}
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: "0.9rem" }}>Precio del servicio:</label>
-                <input
+                <EditLabel>Precio del servicio:</EditLabel>
+                <BasicInput
                   type="number"
                   min="0"
                   value={editPrecioServicio}
@@ -1468,18 +1836,12 @@ const clienteLines = [
                       e.target.value === "" ? 0 : Number(e.target.value)
                     )
                   }
-                  style={{
-                    width: "100%",
-                    padding: "0.5rem",
-                    borderRadius: "6px",
-                    border: "1px solid #ccc",
-                  }}
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: "0.9rem" }}>Descuento (%):</label>
-                <input
+                <EditLabel>Descuento (%):</EditLabel>
+                <BasicInput
                   type="number"
                   min="0"
                   max="100"
@@ -1489,15 +1851,9 @@ const clienteLines = [
                       e.target.value === "" ? 0 : Number(e.target.value)
                     )
                   }
-                  style={{
-                    width: "100%",
-                    padding: "0.5rem",
-                    borderRadius: "6px",
-                    border: "1px solid #ccc",
-                  }}
                 />
               </div>
-            </div>
+            </EditFields>
 
             <Button onClick={guardarEdicion}>Guardar cambios</Button>
           </>
@@ -1549,27 +1905,20 @@ const clienteLines = [
           )}
 
           <TotalRow>
-            <span style={{ fontSize: "1.2rem" }}>TOTAL:</span>
-            <Strong style={{ fontSize: "1.2rem" }}>
+            <Strong>TOTAL:</Strong>
+            <Strong>
               RD${total.toFixed(2)}
             </Strong>
           </TotalRow>
         </TotalBox>
 
-        <div style={{ marginTop: "2rem" }}>
+        <SignatureBlock>
           <p style={{ marginBottom: "3rem" }}>______________________________</p>
           <p style={{ fontSize: "0.9rem", opacity: 0.8 }}>Firma del cliente</p>
-        </div>
+        </SignatureBlock>
 
         {/* BOTONES PDFs */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.5rem",
-            marginTop: "1rem",
-          }}
-        >
+        <PdfButtons>
           <Button onClick={() => handleDescargar("cotizacion")}>
             <Download size={18} />
             Descargar cotización (PDF)
@@ -1586,7 +1935,7 @@ const clienteLines = [
             <Download size={18} />
             Descargar plan 50/50 (PDF)
           </Button>
-        </div>
+        </PdfButtons>
       </Card>
     </Wrapper>
   );

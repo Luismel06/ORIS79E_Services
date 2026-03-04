@@ -1,25 +1,24 @@
-// src/layouts/AdminLayout.jsx
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+﻿import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import styled, { createGlobalStyle, keyframes } from "styled-components";
-import {
-  LayoutDashboard,
-  Users,
-  ClipboardList,
-  ShoppingBag,
-  LogOut,
-  Wrench,
-  FileText,
-  Menu,
-  X,
-  Sun,
-  Moon, // ✅ Íconos para modo día/noche
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import { supabase } from "../supabase/supabase.config.jsx";
 import Swal from "sweetalert2";
+import {
+  ClipboardList,
+  DollarSign,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Moon,
+  ShoppingBag,
+  Sun,
+  Users,
+  Wrench,
+  X,
+} from "lucide-react";
+import { supabase } from "../supabase/supabase.config.jsx";
 import logo from "../assets/logo.png";
-import { DollarSign } from "lucide-react";
-import { useTheme } from "../context/ThemeContext"; // ✅ Usa el hook correcto
+import { useTheme } from "../context/ThemeContext";
 
 function normalizarRol(rol = "") {
   const limpio = String(rol)
@@ -33,12 +32,29 @@ function normalizarRol(rol = "") {
   return "none";
 }
 
+const NAV_ITEMS = [
+  { path: "/admin", title: "Dashboard", icon: LayoutDashboard },
+  { path: "/admin/usuarios", title: "Usuarios", icon: Users },
+  { path: "/admin/servicios", title: "Servicios", icon: Wrench },
+  { path: "/admin/productos", title: "Productos", icon: ShoppingBag },
+  { path: "/admin/tickets", title: "Tickets", icon: ClipboardList },
+  { path: "/admin/publicaciones", title: "Publicaciones", icon: FileText },
+  { path: "/admin/cotizaciones", title: "Cotizaciones", icon: DollarSign },
+];
+
+function obtenerTitulo(pathname) {
+  if (pathname.startsWith("/admin/cotizaciones/")) return "Detalle de cotizacion";
+  if (pathname.startsWith("/admin/tickets")) return "Gestion de tickets";
+  const item = NAV_ITEMS.find((nav) => nav.path === pathname);
+  return item?.title || "Panel administrador";
+}
+
 const NoPaddingGlobal = createGlobalStyle`
-  body, html {
+  html, body, #root {
     margin: 0 !important;
     padding: 0 !important;
+    min-height: 100%;
     overflow-x: hidden;
-    box-sizing: border-box;
   }
 `;
 
@@ -55,7 +71,6 @@ const LoadingScreen = styled.div`
   height: 100vh;
   background: ${({ theme }) => theme.background};
   color: ${({ theme }) => theme.text};
-  text-align: center;
   gap: 1rem;
 `;
 
@@ -67,155 +82,274 @@ const SpinningLogo = styled.img`
 `;
 
 const LoadingText = styled.p`
-  font-size: 1.1rem;
-  font-weight: 600;
+  margin: 0;
   color: ${({ theme }) => theme.accent};
-  letter-spacing: 0.5px;
+  font-weight: 600;
 `;
 
-const Layout = styled.div`
+const Shell = styled.div`
+  min-height: 100vh;
   display: flex;
-  height: 100vh;
-  background-color: ${({ theme }) => theme.background};
+  background: ${({ theme }) => theme.background};
   color: ${({ theme }) => theme.text};
-  @media (max-width: 900px) {
-    flex-direction: column;
-  }
 `;
 
-const Sidebar = styled.nav`
-  width: 80px;
-  background-color: ${({ theme }) => theme.cardBackground};
+const Sidebar = styled.aside`
+  width: 250px;
+  min-height: 100vh;
+  background: ${({ theme }) => theme.cardBackground};
+  border-right: 1px solid ${({ theme }) => theme.border};
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 1rem 0;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
+  position: sticky;
+  top: 0;
   z-index: 1200;
 
-  @media (max-width: 900px) {
+  @media (max-width: 960px) {
     position: fixed;
-    top: 0;
     left: 0;
-    height: 100%;
-    transform: ${({ $open }) => ($open ? "translateX(0)" : "translateX(-100%)")};
-    background-color: ${({ theme }) => theme.cardBackground};
+    width: min(280px, 84vw);
+    transform: ${({ $open }) =>
+      $open ? "translateX(0)" : "translateX(calc(-100% - 20px))"};
+    transition: transform 0.25s ease;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
   }
 `;
 
-const IconButton = styled.button`
-  background: none;
-  border: none;
-  margin: 1rem 0;
-  color: ${({ $active, theme }) => ($active ? theme.accent : theme.text)};
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  &:hover {
-    color: ${({ theme }) => theme.accent};
-    transform: scale(1.2);
-  }
-`;
-
-const Content = styled.main`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-`;
-
-const TopBar = styled.header`
-  width: 100%;
-  background-color: ${({ theme }) => theme.cardBackground};
+const SidebarHeader = styled.div`
+  padding: 1rem 1rem 0.6rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.8rem 1.5rem;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  gap: 0.6rem;
+  border-bottom: 1px solid ${({ theme }) => theme.border};
+`;
+
+const Brand = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+
+  img {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  div {
+    line-height: 1.15;
+  }
+
+  strong {
+    display: block;
+    font-size: 0.92rem;
+    color: ${({ theme }) => theme.accent};
+  }
+
+  span {
+    font-size: 0.76rem;
+    opacity: 0.78;
+  }
+`;
+
+const CloseButton = styled.button`
+  border: none;
+  background: transparent;
+  color: ${({ theme }) => theme.text};
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: none;
+  place-items: center;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 188, 212, 0.15);
+    color: ${({ theme }) => theme.accent};
+  }
+
+  @media (max-width: 960px) {
+    display: grid;
+  }
+`;
+
+const NavList = styled.div`
+  display: flex;
+  flex-direction: column;
+  padding: 0.8rem;
+  gap: 0.35rem;
+`;
+
+const NavButton = styled.button`
+  border: 1px solid
+    ${({ $active, theme }) =>
+      $active ? "rgba(0, 188, 212, 0.4)" : "transparent"};
+  background: ${({ $active }) =>
+    $active ? "rgba(0, 188, 212, 0.16)" : "transparent"};
+  color: ${({ $active, theme }) => ($active ? theme.accent : theme.text)};
+  border-radius: 10px;
+  padding: 0.7rem 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  text-align: left;
+  transition: 0.2s;
+
+  &:hover {
+    background: rgba(0, 188, 212, 0.14);
+    color: ${({ theme }) => theme.accent};
+  }
+`;
+
+const Main = styled.main`
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+`;
+
+const TopBar = styled.header`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.75rem 1.1rem;
+  background: ${({ theme }) => theme.cardBackground};
+  border-bottom: 1px solid ${({ theme }) => theme.border};
   position: sticky;
   top: 0;
   z-index: 1000;
-`;
 
-const Title = styled.h2`
-  color: ${({ theme }) => theme.accent};
-  font-weight: 700;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-`;
-
-const UserInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  font-size: 0.95rem;
-  text-align: right;
-
-  @media (max-width: 600px) {
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.3rem;
+  @media (max-width: 560px) {
+    padding: 0.65rem 0.75rem;
   }
+`;
+
+const TopLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+`;
+
+const MenuButton = styled.button`
+  border: none;
+  background: transparent;
+  color: ${({ theme }) => theme.text};
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: none;
+  place-items: center;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 188, 212, 0.14);
+    color: ${({ theme }) => theme.accent};
+  }
+
+  @media (max-width: 960px) {
+    display: grid;
+  }
+`;
+
+const CurrentTitle = styled.h1`
+  margin: 0;
+  font-size: clamp(1rem, 2.2vw, 1.32rem);
+  color: ${({ theme }) => theme.accent};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const TopRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
 `;
 
 const Email = styled.span`
-  color: ${({ theme }) => theme.accent};
-  font-weight: 500;
-`;
-
-const LogoutButton = styled.button`
-  background-color: ${({ theme }) => theme.accent};
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 0.6rem 1rem;
-  cursor: pointer;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  transition: 0.3s;
-
-  &:hover {
-    opacity: 0.9;
-    transform: scale(1.05);
-  }
-`;
-
-const MobileMenuButton = styled.button`
-  background: none;
-  border: none;
+  font-size: 0.82rem;
   color: ${({ theme }) => theme.text};
-  cursor: pointer;
-  display: none;
-  @media (max-width: 900px) {
-    display: block;
-  }
+  opacity: 0.85;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
-  svg {
-    stroke: ${({ theme }) => theme.text};
+  @media (max-width: 700px) {
+    display: none;
   }
 `;
 
-// ✅ Nuevo botón de cambio de tema
-const ThemeToggleButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
+const ActionIconButton = styled.button`
+  border: 1px solid ${({ theme }) => theme.border};
+  background: ${({ theme }) => theme.cardBackground};
   color: ${({ theme }) => theme.text};
-  display: flex;
-  align-items: center;
-  transition: color 0.3s ease, transform 0.2s ease;
+  border-radius: 10px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: 0.2s;
 
   &:hover {
     color: ${({ theme }) => theme.accent};
-    transform: rotate(15deg);
+    border-color: ${({ theme }) => theme.accent};
+  }
+`;
+
+const LogoutButton = styled.button`
+  border: none;
+  background: ${({ theme }) => theme.accent};
+  color: #fff;
+  border-radius: 10px;
+  padding: 0.6rem 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+
+  &:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 560px) {
+    span {
+      display: none;
+    }
+    padding: 0.55rem 0.65rem;
+  }
+`;
+
+const PageViewport = styled.section`
+  flex: 1;
+  overflow: auto;
+  padding: 1rem 1.2rem 1.4rem;
+
+  @media (max-width: 560px) {
+    padding: 0.75rem 0.75rem 1rem;
+  }
+`;
+
+const Backdrop = styled.button`
+  position: fixed;
+  inset: 0;
+  border: none;
+  background: rgba(5, 10, 20, 0.55);
+  z-index: 1100;
+  display: none;
+
+  @media (max-width: 960px) {
+    display: ${({ $open }) => ($open ? "block" : "none")};
   }
 `;
 
@@ -225,8 +359,7 @@ export function AdminLayout() {
   const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
-
-  const { theme, toggleTheme } = useTheme(); // ✅ usa el hook del ThemeContext
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const checkSession = async () => {
@@ -238,7 +371,6 @@ export function AdminLayout() {
       }
 
       const userEmail = data.user.email;
-
       const { data: perfil, error: perfilError } = await supabase
         .from("usuarios")
         .select("rol")
@@ -255,18 +387,21 @@ export function AdminLayout() {
       if (rol === "admin") {
         setUser(data.user);
         setCheckingAuth(false);
-      } else if (rol === "tecnico") {
+        return;
+      }
+
+      if (rol === "tecnico") {
         navigate("/tecnico/tickets", { replace: true });
         return;
-      } else {
-        await Swal.fire({
-          icon: "error",
-          title: "Acceso denegado",
-          text: "Tu rol no tiene permisos para acceder a esta sección.",
-          confirmButtonColor: "#00bcd4",
-        });
-        navigate("/", { replace: true });
       }
+
+      await Swal.fire({
+        icon: "error",
+        title: "Acceso denegado",
+        text: "Tu rol no tiene permisos para acceder a esta seccion.",
+        confirmButtonColor: "#00bcd4",
+      });
+      navigate("/", { replace: true });
     };
 
     checkSession();
@@ -274,7 +409,10 @@ export function AdminLayout() {
 
   useEffect(() => {
     setMenuOpen(false);
-  }, [location]);
+  }, [location.pathname]);
+
+  const currentPath = location.pathname;
+  const currentTitle = useMemo(() => obtenerTitulo(currentPath), [currentPath]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -292,104 +430,94 @@ export function AdminLayout() {
     );
   }
 
-  const currentPath = location.pathname;
-
   return (
     <>
       <NoPaddingGlobal />
 
-      <Layout>
+      <Backdrop
+        type="button"
+        aria-label="Cerrar menu lateral"
+        $open={menuOpen}
+        onClick={() => setMenuOpen(false)}
+      />
+
+      <Shell>
         <Sidebar $open={menuOpen}>
-          <IconButton onClick={() => setMenuOpen(false)}>
-            <X size={26} />
-          </IconButton>
+          <SidebarHeader>
+            <Brand>
+              <img src={logo} alt="ORIS79E Services" />
+              <div>
+                <strong>ORIS79E</strong>
+                <span>Panel Admin</span>
+              </div>
+            </Brand>
+            <CloseButton
+              type="button"
+              aria-label="Cerrar menu"
+              onClick={() => setMenuOpen(false)}
+            >
+              <X size={20} />
+            </CloseButton>
+          </SidebarHeader>
 
-          <IconButton
-            onClick={() => navigate("/admin")}
-            $active={currentPath === "/admin"}
-            title="Dashboard"
-          >
-            <LayoutDashboard size={24} />
-          </IconButton>
+          <NavList>
+            {NAV_ITEMS.map(({ path, title, icon: Icon }) => {
+              const isActive =
+                path === "/admin/cotizaciones"
+                  ? currentPath.startsWith("/admin/cotizaciones")
+                  : currentPath === path;
 
-          <IconButton
-            onClick={() => navigate("/admin/Usuarios")}
-            $active={currentPath === "/admin/Usuarios"}
-            title="Usuarios"
-          >
-            <Users size={24} />
-          </IconButton>
-
-          <IconButton
-            onClick={() => navigate("/admin/servicios")}
-            $active={currentPath === "/admin/servicios"}
-            title="Servicios"
-          >
-            <Wrench size={24} />
-          </IconButton>
-
-          <IconButton
-            onClick={() => navigate("/admin/productos")}
-            $active={currentPath === "/admin/productos"}
-            title="Productos"
-          >
-            <ShoppingBag size={24} />
-          </IconButton>
-
-          <IconButton
-            onClick={() => navigate("/admin/tickets")}
-            $active={currentPath === "/admin/tickets"}
-            title="Tickets"
-          >
-            <ClipboardList size={24} />
-          </IconButton>
-
-          <IconButton
-            onClick={() => navigate("/admin/publicaciones")}
-            $active={currentPath === "/admin/publicaciones"}
-            title="Publicaciones"
-          >
-            <FileText size={24} />
-          </IconButton>
-          <IconButton
-            onClick={() => navigate("/admin/cotizaciones")}
-            $active={currentPath === "/admin/cotizaciones"}
-            title="Cotizaciones"
-          >
-  <DollarSign size={24} />
-</IconButton>
-
+              return (
+                <NavButton
+                  key={path}
+                  type="button"
+                  $active={isActive}
+                  onClick={() => navigate(path)}
+                >
+                  <Icon size={18} />
+                  <span>{title}</span>
+                </NavButton>
+              );
+            })}
+          </NavList>
         </Sidebar>
 
-        <Content>
+        <Main>
           <TopBar>
-            <Title>
-              <MobileMenuButton onClick={() => setMenuOpen(!menuOpen)}>
-                <Menu size={22} />
-              </MobileMenuButton>
-              Dashboard
-            </Title>
+            <TopLeft>
+              <MenuButton
+                type="button"
+                aria-label="Abrir menu"
+                onClick={() => setMenuOpen((prev) => !prev)}
+              >
+                <Menu size={20} />
+              </MenuButton>
+              <CurrentTitle>{currentTitle}</CurrentTitle>
+            </TopLeft>
 
-            <UserInfo>
-              {/* ✅ Nuevo botón de modo día/noche */}
-              <ThemeToggleButton onClick={toggleTheme} title="Cambiar tema">
-                {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
-              </ThemeToggleButton>
+            <TopRight>
+              <Email>{user?.email}</Email>
+              <ActionIconButton
+                type="button"
+                onClick={toggleTheme}
+                title="Cambiar tema"
+                aria-label="Cambiar tema"
+              >
+                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+              </ActionIconButton>
 
-              <div>
-                Hi, <strong>ORIS79E Services</strong>
-                <br />
-                <Email>{user?.email}</Email>
-              </div>
-              <LogoutButton onClick={handleLogout}>
-                <LogOut size={18} /> Salir
+              <LogoutButton type="button" onClick={handleLogout}>
+                <LogOut size={16} />
+                <span>Salir</span>
               </LogoutButton>
-            </UserInfo>
+            </TopRight>
           </TopBar>
 
-          <Outlet />
-        </Content>
-      </Layout>
+          <PageViewport>
+            <Outlet />
+          </PageViewport>
+        </Main>
+      </Shell>
     </>
   );
 }

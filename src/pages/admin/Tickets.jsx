@@ -26,8 +26,17 @@ const TICKET_DESTACADO_LEGACY_KEY = "admin_ticket_destacado_id";
 // === ESTILOS GENERALES ===
 const Container = styled.section`
   width: 100%;
-  padding: 2rem;
+  padding: clamp(0.7rem, 2vw, 1.3rem);
   color: ${({ theme }) => theme.text};
+`;
+
+const PageTitle = styled.h2`
+  margin: 0 0 1rem;
+  color: ${({ theme }) => theme.accent};
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
 `;
 
 const Tabs = styled.div`
@@ -36,6 +45,9 @@ const Tabs = styled.div`
   gap: 1rem;
   border-bottom: 2px solid ${({ theme }) => theme.border};
   margin-bottom: 2rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 0.2rem;
 `;
 
 const TabButton = styled.button`
@@ -53,6 +65,20 @@ const TabButton = styled.button`
   &:hover {
     color: ${({ theme }) => theme.accent};
   }
+
+  @media (max-width: 700px) {
+    padding: 0.6rem 0.85rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+`;
+
+const TableWrap = styled.div`
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 10px;
+  background: ${({ theme }) => theme.cardBackground};
 `;
 
 const Table = styled.table`
@@ -62,6 +88,7 @@ const Table = styled.table`
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  min-width: 820px;
 
   th,
   td {
@@ -93,7 +120,7 @@ const ActionButton = styled.button`
   padding: 0.5rem 0.8rem;
   cursor: pointer;
   font-size: 0.8rem;
-  margin-right: 0.5rem;
+  margin-right: 0;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -141,6 +168,11 @@ const TicketHeader = styled.div`
   justify-content: space-between;
   gap: 1rem;
   background: ${({ theme }) => theme.inputBackground};
+
+  @media (max-width: 760px) {
+    flex-direction: column;
+    padding: 1rem;
+  }
 `;
 
 const TicketHeaderLeft = styled.div``;
@@ -162,6 +194,10 @@ const TicketHeaderRight = styled.div`
   align-items: flex-end;
   justify-content: center;
   gap: 0.4rem;
+
+  @media (max-width: 760px) {
+    align-items: flex-start;
+  }
 `;
 
 const EstadoBadge = styled.span`
@@ -196,6 +232,7 @@ const EstadoBadge = styled.span`
 const HeaderActions = styled.div`
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 
   a,
   button {
@@ -249,9 +286,24 @@ const InfoRow = styled.div`
   justify-content: space-between;
   font-size: 0.9rem;
   margin: 0.3rem 0;
+  gap: 0.8rem;
 
   span:first-child {
     font-weight: 600;
+  }
+
+  span:last-child {
+    text-align: right;
+    word-break: break-word;
+  }
+
+  @media (max-width: 620px) {
+    flex-direction: column;
+    gap: 0.18rem;
+
+    span:last-child {
+      text-align: left;
+    }
   }
 `;
 
@@ -307,6 +359,10 @@ const ChatBubble = styled.div`
 
   align-self: ${({ $isMine }) => ($isMine ? "flex-end" : "flex-start")};
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+
+  @media (max-width: 700px) {
+    max-width: 92%;
+  }
 `;
 
 const ChatEstado = styled.span`
@@ -343,6 +399,10 @@ const FilterBar = styled.div`
   justify-content: flex-end;
   gap: 0.6rem;
   flex-wrap: wrap;
+
+  @media (max-width: 700px) {
+    justify-content: stretch;
+  }
 `;
 
 const FilterInput = styled.input`
@@ -353,6 +413,10 @@ const FilterInput = styled.input`
   border: 1px solid ${({ theme }) => theme.border};
   background: ${({ theme }) => theme.cardBackground};
   color: ${({ theme }) => theme.text};
+
+  @media (max-width: 700px) {
+    max-width: none;
+  }
 `;
 
 const HighlightInfo = styled.div`
@@ -367,6 +431,41 @@ const HighlightInfo = styled.div`
   gap: 0.7rem;
   flex-wrap: wrap;
   font-size: 0.9rem;
+`;
+
+const HighlightActions = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+`;
+
+const ReassignButton = styled.button`
+  margin-top: 0.4rem;
+  background: ${({ theme }) => theme.accent};
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+`;
+
+const DetailParagraph = styled.p`
+  font-size: 0.88rem;
+  opacity: 0.8;
+  margin: 0.2rem 0 0.4rem;
+`;
+
+const ChatActionRow = styled.div`
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 `;
 
 const MotionDiv = motion.div;
@@ -678,7 +777,9 @@ export default function Tickets() {
           .from("detalle_cotizacion")
           .select("*")
           .eq("cotizacion_id", cot.id),
-        supabase.from("productos").select("id, nombre, modelo"),
+        supabase
+          .from("productos")
+          .select("id, nombre, categoria, modelo, marca, proveedor"),
       ]);
 
     const base = items && items.length > 0 ? items : detLegacy || [];
@@ -979,10 +1080,10 @@ export default function Tickets() {
   // =======================
   return (
     <Container>
-      <h2 style={{ color: "#00bcd4", marginBottom: "1.5rem" }}>
-        <ClipboardList size={24} style={{ marginRight: "8px" }} />
+      <PageTitle>
+        <ClipboardList size={24} />
         Gestión de Tickets
-      </h2>
+      </PageTitle>
 
       {/* === TABS === */}
       <Tabs>
@@ -1042,7 +1143,7 @@ export default function Tickets() {
           <span>
             <strong>Tickets destacados:</strong> {ticketsDestacados.length}
           </span>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <HighlightActions>
             <OutlineActionButton
               type="button"
               onClick={() => setTab("destacados")}
@@ -1057,245 +1158,113 @@ export default function Tickets() {
               <Star size={14} />
               Quitar todos
             </OutlineActionButton>
-          </div>
+          </HighlightActions>
         </HighlightInfo>
       )}
 
       {/* SOLICITUDES NUEVAS */}
       {tab === "solicitudes" && (
         <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Table>
-            <thead>
-              <tr>
-                <th>#Caso</th>
-                <th>Cliente</th>
-                <th>Cedula / RNC</th>
-                <th>Teléfono</th>
-                <th>Servicio</th>
-                <th>Descripción</th>
-                <th>Fecha</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {solicitudesFiltradas.map((s) => (
-                <tr key={s.id} style={estiloFila(s)}>
-                  <td>{esTicketDestacado(s) ? "★ " : ""}{s.numero_caso}</td>
-                  <td>{s.cliente}</td>
-                  <td>{obtenerDocumentoTicket(s).valor}</td>
-                  <td>
-                    <a
-                      href={`https://wa.me/${s.telefono}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: "#00bcd4",
-                        textDecoration: "none",
-                      }}
-                    >
-                      <Phone size={14} /> {s.telefono}
-                    </a>
-                  </td>
-                  <td>{s.servicio_nombre}</td>
-                  <td style={{ maxWidth: "250px" }}>
-                    <FileText size={14} /> {s.descripcion || "Sin descripción"}
-                  </td>
-                  <td>{new Date(s.fecha).toLocaleDateString()}</td>
-                  <td>
-                    <ActionButton
-                      onClick={() =>
-                        asignarTecnico(
-                          s.id,
-                          s.numero_caso,
-                          s.cliente,
-                          s.email,
-                          s.servicio_nombre
-                        )
-                      }
-                    >
-                      <UserCog size={14} /> Asignar
-                    </ActionButton>
-                    <OutlineActionButton
-                      type="button"
-                      onClick={() => alternarDestacado(s)}
-                    >
-                      <Star size={14} />
-                      {esTicketDestacado(s) ? "Quitar" : "Destacar"}
-                    </OutlineActionButton>
-                  </td>
+          <TableWrap>
+            <Table>
+              <thead>
+                <tr>
+                  <th>#Caso</th>
+                  <th>Cliente</th>
+                  <th>Cedula / RNC</th>
+                  <th>Teléfono</th>
+                  <th>Servicio</th>
+                  <th>Descripción</th>
+                  <th>Fecha</th>
+                  <th>Acción</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+                {solicitudesFiltradas.map((s) => (
+                  <tr key={s.id} style={estiloFila(s)}>
+                    <td>{esTicketDestacado(s) ? "★ " : ""}{s.numero_caso}</td>
+                    <td>{s.cliente}</td>
+                    <td>{obtenerDocumentoTicket(s).valor}</td>
+                    <td>
+                      <a
+                        href={`https://wa.me/${s.telefono}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: "#00bcd4",
+                          textDecoration: "none",
+                        }}
+                      >
+                        <Phone size={14} /> {s.telefono}
+                      </a>
+                    </td>
+                    <td>{s.servicio_nombre}</td>
+                    <td style={{ maxWidth: "250px" }}>
+                      <FileText size={14} /> {s.descripcion || "Sin descripción"}
+                    </td>
+                    <td>{new Date(s.fecha).toLocaleDateString()}</td>
+                    <td>
+                      <ActionButton
+                        onClick={() =>
+                          asignarTecnico(
+                            s.id,
+                            s.numero_caso,
+                            s.cliente,
+                            s.email,
+                            s.servicio_nombre
+                          )
+                        }
+                      >
+                        <UserCog size={14} /> Asignar
+                      </ActionButton>
+                      <OutlineActionButton
+                        type="button"
+                        onClick={() => alternarDestacado(s)}
+                      >
+                        <Star size={14} />
+                        {esTicketDestacado(s) ? "Quitar" : "Destacar"}
+                      </OutlineActionButton>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableWrap>
         </MotionDiv>
       )}
 
       {/* ACTIVOS */}
       {tab === "activos" && (
         <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Table>
-            <thead>
-              <tr>
-                <th>#Caso</th>
-                <th>Cliente</th>
-                <th>Cedula / RNC</th>
-                <th>Técnico</th>
-                <th>Servicio</th>
-                <th>Tarea</th>
-                <th>Fecha</th>
-                <th>Hora</th>
-                <th>Estado</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {activosFiltrados.map((t) => (
-                <tr key={t.id} style={estiloFila(t)}>
-                  <td>{esTicketDestacado(t) ? "★ " : ""}{t.numero_caso}</td>
-                  <td>{t.cliente}</td>
-                  <td>{obtenerDocumentoTicket(t).valor}</td>
-                  <td>{t.tecnico_asignado || "Sin asignar"}</td>
-                  <td>{t.servicio_nombre}</td>
-                  <td>{t.tipo_tarea || "-"}</td>
-                  <td>{t.fecha_agendada || "-"}</td>
-                  <td>{t.hora_agendada || "-"}</td>
-                  <td>{t.estadoFinal}</td>
-                  <td>
-                    <ActionButton onClick={() => abrirDetalles(t)}>
-                      <MessageSquare size={14} /> Ver detalles
-                    </ActionButton>
-                    <OutlineActionButton
-                      type="button"
-                      onClick={() => alternarDestacado(t)}
-                    >
-                      <Star size={14} />
-                      {esTicketDestacado(t) ? "Quitar" : "Destacar"}
-                    </OutlineActionButton>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </MotionDiv>
-      )}
-
-      {/* FINALIZADOS */}
-      {tab === "finalizados" && (
-        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Table>
-            <thead>
-              <tr>
-                <th>#Caso</th>
-                <th>Cliente</th>
-                <th>Cedula / RNC</th>
-                <th>Servicio</th>
-                <th>Fecha</th>
-                <th>Estado</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {finalizadosFiltrados.map((t) => (
-                <tr key={t.id} style={estiloFila(t)}>
-                  <td>{esTicketDestacado(t) ? "★ " : ""}{t.numero_caso}</td>
-                  <td>{t.cliente}</td>
-                  <td>{obtenerDocumentoTicket(t).valor}</td>
-                  <td>{t.servicio_nombre}</td>
-                  <td>{t.fecha_agendada || "-"}</td>
-                  <td>{t.estadoFinal}</td>
-                  <td>
-                    <ActionButton onClick={() => abrirDetalles(t)}>
-                      <MessageSquare size={14} /> Ver detalles
-                    </ActionButton>
-                    <OutlineActionButton
-                      type="button"
-                      onClick={() => alternarDestacado(t)}
-                    >
-                      <Star size={14} />
-                      {esTicketDestacado(t) ? "Quitar" : "Destacar"}
-                    </OutlineActionButton>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </MotionDiv>
-      )}
-
-      {/* CANCELADOS */}
-      {tab === "cancelados" && (
-        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Table>
-            <thead>
-              <tr>
-                <th>#Caso</th>
-                <th>Cliente</th>
-                <th>Cedula / RNC</th>
-                <th>Servicio</th>
-                <th>Fecha</th>
-                <th>Estado</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {canceladosFiltrados.map((t) => (
-                <tr key={t.id} style={estiloFila(t)}>
-                  <td>{esTicketDestacado(t) ? "★ " : ""}{t.numero_caso}</td>
-                  <td>{t.cliente}</td>
-                  <td>{obtenerDocumentoTicket(t).valor}</td>
-                  <td>{t.servicio_nombre}</td>
-                  <td>{t.fecha_agendada || "-"}</td>
-                  <td>{t.estadoFinal}</td>
-                  <td>
-                    <OutlineActionButton
-                      type="button"
-                      onClick={() => alternarDestacado(t)}
-                    >
-                      <Star size={14} />
-                      {esTicketDestacado(t) ? "Quitar" : "Destacar"}
-                    </OutlineActionButton>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </MotionDiv>
-      )}
-
-      {/* DESTACADOS */}
-      {tab === "destacados" && (
-        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Table>
-            <thead>
-              <tr>
-                <th>#Caso</th>
-                <th>Cliente</th>
-                <th>Cedula / RNC</th>
-                <th>Servicio</th>
-                <th>Fecha</th>
-                <th>Estado</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {destacadosFiltrados.length === 0 ? (
+          <TableWrap>
+            <Table>
+              <thead>
                 <tr>
-                  <td colSpan={7}>
-                    No hay tickets destacados con los filtros actuales.
-                  </td>
+                  <th>#Caso</th>
+                  <th>Cliente</th>
+                  <th>Cedula / RNC</th>
+                  <th>Técnico</th>
+                  <th>Servicio</th>
+                  <th>Tarea</th>
+                  <th>Fecha</th>
+                  <th>Hora</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
                 </tr>
-              ) : (
-                destacadosFiltrados.map((t) => (
+              </thead>
+
+              <tbody>
+                {activosFiltrados.map((t) => (
                   <tr key={t.id} style={estiloFila(t)}>
                     <td>{esTicketDestacado(t) ? "★ " : ""}{t.numero_caso}</td>
                     <td>{t.cliente}</td>
                     <td>{obtenerDocumentoTicket(t).valor}</td>
+                    <td>{t.tecnico_asignado || "Sin asignar"}</td>
                     <td>{t.servicio_nombre}</td>
+                    <td>{t.tipo_tarea || "-"}</td>
                     <td>{t.fecha_agendada || "-"}</td>
-                    <td>{obtenerEstadoTicket(t)}</td>
+                    <td>{t.hora_agendada || "-"}</td>
+                    <td>{t.estadoFinal}</td>
                     <td>
                       <ActionButton onClick={() => abrirDetalles(t)}>
                         <MessageSquare size={14} /> Ver detalles
@@ -1305,14 +1274,156 @@ export default function Tickets() {
                         onClick={() => alternarDestacado(t)}
                       >
                         <Star size={14} />
-                        Quitar
+                        {esTicketDestacado(t) ? "Quitar" : "Destacar"}
                       </OutlineActionButton>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </Table>
+                ))}
+              </tbody>
+            </Table>
+          </TableWrap>
+        </MotionDiv>
+      )}
+
+      {/* FINALIZADOS */}
+      {tab === "finalizados" && (
+        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <TableWrap>
+            <Table>
+              <thead>
+                <tr>
+                  <th>#Caso</th>
+                  <th>Cliente</th>
+                  <th>Cedula / RNC</th>
+                  <th>Servicio</th>
+                  <th>Fecha</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {finalizadosFiltrados.map((t) => (
+                  <tr key={t.id} style={estiloFila(t)}>
+                    <td>{esTicketDestacado(t) ? "★ " : ""}{t.numero_caso}</td>
+                    <td>{t.cliente}</td>
+                    <td>{obtenerDocumentoTicket(t).valor}</td>
+                    <td>{t.servicio_nombre}</td>
+                    <td>{t.fecha_agendada || "-"}</td>
+                    <td>{t.estadoFinal}</td>
+                    <td>
+                      <ActionButton onClick={() => abrirDetalles(t)}>
+                        <MessageSquare size={14} /> Ver detalles
+                      </ActionButton>
+                      <OutlineActionButton
+                        type="button"
+                        onClick={() => alternarDestacado(t)}
+                      >
+                        <Star size={14} />
+                        {esTicketDestacado(t) ? "Quitar" : "Destacar"}
+                      </OutlineActionButton>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableWrap>
+        </MotionDiv>
+      )}
+
+      {/* CANCELADOS */}
+      {tab === "cancelados" && (
+        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <TableWrap>
+            <Table>
+              <thead>
+                <tr>
+                  <th>#Caso</th>
+                  <th>Cliente</th>
+                  <th>Cedula / RNC</th>
+                  <th>Servicio</th>
+                  <th>Fecha</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {canceladosFiltrados.map((t) => (
+                  <tr key={t.id} style={estiloFila(t)}>
+                    <td>{esTicketDestacado(t) ? "★ " : ""}{t.numero_caso}</td>
+                    <td>{t.cliente}</td>
+                    <td>{obtenerDocumentoTicket(t).valor}</td>
+                    <td>{t.servicio_nombre}</td>
+                    <td>{t.fecha_agendada || "-"}</td>
+                    <td>{t.estadoFinal}</td>
+                    <td>
+                      <OutlineActionButton
+                        type="button"
+                        onClick={() => alternarDestacado(t)}
+                      >
+                        <Star size={14} />
+                        {esTicketDestacado(t) ? "Quitar" : "Destacar"}
+                      </OutlineActionButton>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableWrap>
+        </MotionDiv>
+      )}
+
+      {/* DESTACADOS */}
+      {tab === "destacados" && (
+        <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <TableWrap>
+            <Table>
+              <thead>
+                <tr>
+                  <th>#Caso</th>
+                  <th>Cliente</th>
+                  <th>Cedula / RNC</th>
+                  <th>Servicio</th>
+                  <th>Fecha</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {destacadosFiltrados.length === 0 ? (
+                  <tr>
+                    <td colSpan={7}>
+                      No hay tickets destacados con los filtros actuales.
+                    </td>
+                  </tr>
+                ) : (
+                  destacadosFiltrados.map((t) => (
+                    <tr key={t.id} style={estiloFila(t)}>
+                      <td>{esTicketDestacado(t) ? "★ " : ""}{t.numero_caso}</td>
+                      <td>{t.cliente}</td>
+                      <td>{obtenerDocumentoTicket(t).valor}</td>
+                      <td>{t.servicio_nombre}</td>
+                      <td>{t.fecha_agendada || "-"}</td>
+                      <td>{obtenerEstadoTicket(t)}</td>
+                      <td>
+                        <ActionButton onClick={() => abrirDetalles(t)}>
+                          <MessageSquare size={14} /> Ver detalles
+                        </ActionButton>
+                        <OutlineActionButton
+                          type="button"
+                          onClick={() => alternarDestacado(t)}
+                        >
+                          <Star size={14} />
+                          Quitar
+                        </OutlineActionButton>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          </TableWrap>
         </MotionDiv>
       )}
 
@@ -1373,21 +1484,8 @@ export default function Tickets() {
                     </button>
                   </HeaderActions>
 
-                  <button
-                    style={{
-                      marginTop: "10px",
-                      background: "#00bcd4",
-                      color: "white",
-                      border: "none",
-                      padding: "7px 12px",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      fontWeight: "600",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-                    }}
+                  <ReassignButton
+                    type="button"
                     onClick={() =>
                       asignarTecnico(
                         ticketSeleccionado.id,
@@ -1399,7 +1497,7 @@ export default function Tickets() {
                     }
                   >
                     🔄 Reasignar técnico
-                  </button>
+                  </ReassignButton>
                 </TicketHeaderRight>
               </TicketHeader>
 
@@ -1479,10 +1577,10 @@ export default function Tickets() {
                   <SectionTitle style={{ marginTop: "1.2rem" }}>
                     Descripción del problema
                   </SectionTitle>
-                  <p style={{ fontSize: "0.9rem", opacity: 0.85 }}>
+                  <DetailParagraph>
                     {ticketSeleccionado.descripcion ||
                       "Sin descripción registrada."}
-                  </p>
+                  </DetailParagraph>
 
                   {/* NUEVA SECCIÓN: EQUIPOS Y MATERIALES COTIZADOS */}
                   <SectionTitle style={{ marginTop: "1.2rem" }}>
@@ -1490,18 +1588,12 @@ export default function Tickets() {
                   </SectionTitle>
 
                   {!cotizacionLigada ? (
-                    <p style={{ fontSize: "0.85rem", opacity: 0.75 }}>
+                    <DetailParagraph>
                       No hay una cotización ligada a este ticket todavía.
-                    </p>
+                    </DetailParagraph>
                   ) : (
                     <>
-                      <p
-                        style={{
-                          fontSize: "0.85rem",
-                          opacity: 0.8,
-                          marginBottom: "0.3rem",
-                        }}
-                      >
+                      <DetailParagraph>
                         Cotización #{cotizacionLigada.id} — Total{" "}
                         <strong>
                           RD$
@@ -1510,12 +1602,12 @@ export default function Tickets() {
                             { minimumFractionDigits: 2 }
                           )}
                         </strong>
-                      </p>
+                      </DetailParagraph>
 
                       <EquiposTable>
                         <thead>
                           <tr>
-                            <th>Equipo / material</th>
+                            <th>Descripcion</th>
                             <th>Cant.</th>
                           </tr>
                         </thead>
@@ -1530,9 +1622,11 @@ export default function Tickets() {
                             detalleCotizacion.map((d) => (
                               <tr key={d.id}>
                                 <td>
-                                  {d.nombre_producto ||
-                                    d.producto?.nombre ||
-                                    "Producto sin nombre"}
+                                  {(d.producto?.categoria || "-")} |{" "}
+                                  {(d.producto?.modelo || "-")} |{" "}
+                                  {(d.nombre_producto || d.producto?.nombre || "Sin descripcion")} |{" "}
+                                  {(d.producto?.marca || "-")} |{" "}
+                                  {(d.producto?.proveedor || "-")}
                                 </td>
                                 <td>{d.cantidad}</td>
                               </tr>
@@ -1557,9 +1651,9 @@ export default function Tickets() {
                 <ChatPanel>
                   <ChatMessages>
                     {mensajes.length === 0 ? (
-                      <p style={{ fontSize: "0.9rem", opacity: 0.7 }}>
+                      <DetailParagraph>
                         Aún no hay actividad registrada en este ticket.
-                      </p>
+                      </DetailParagraph>
                     ) : (
                       mensajes.map((m) => (
                         <ChatBubble key={m.id} $isMine={m.esTecnico}>
@@ -1585,14 +1679,7 @@ export default function Tickets() {
                               {m.rawRequest &&
                                 (!m.estadoRequest ||
                                   m.estadoRequest === "pendiente") && (
-                                  <div
-                                    style={{
-                                      marginTop: "0.5rem",
-                                      display: "flex",
-                                      gap: "0.5rem",
-                                      justifyContent: "flex-end",
-                                    }}
-                                  >
+                                  <ChatActionRow>
                                     <ActionButton
                                       onClick={() =>
                                         procesarRequest(m.rawRequest, true)
@@ -1607,7 +1694,7 @@ export default function Tickets() {
                                     >
                                       ✖ Rechazar
                                     </ActionButton>
-                                  </div>
+                                  </ChatActionRow>
                                 )}
                             </>
                           )}

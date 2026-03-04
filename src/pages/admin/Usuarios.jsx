@@ -10,7 +10,10 @@ import {
 
 // === Estilos (idénticos a tu versión) ===
 const Container = styled.div`
-  padding: 2rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
@@ -92,8 +95,15 @@ const TableSection = styled.div`
   background: ${({ theme }) => theme.cardBackground};
   border-radius: 16px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-  overflow-x: auto;
   padding: 1.5rem;
+`;
+
+const TableWrap = styled.div`
+  overflow-x: auto;
+
+  @media (max-width: 760px) {
+    display: none;
+  }
 `;
 
 const Table = styled.table`
@@ -131,6 +141,35 @@ const DeleteButton = styled.button`
 
   &:hover {
     transform: scale(1.2);
+  }
+`;
+
+const MobileList = styled.div`
+  display: none;
+
+  @media (max-width: 760px) {
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 0.8rem;
+  }
+`;
+
+const MobileCard = styled.article`
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 12px;
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.35rem;
+`;
+
+const MobileRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.88rem;
+
+  span:first-child {
+    opacity: 0.75;
   }
 `;
 
@@ -236,49 +275,92 @@ export default function Usuarios() {
       {/* ==== Tabla ==== */}
       <TableSection>
         <Title>Usuarios Registrados</Title>
-        <Table>
-          <thead>
-            <tr>
-              <Th>Nombre</Th>
-              <Th>Email</Th>
-              <Th>Rol</Th>
-              <Th>Fecha</Th>
-              <Th>Acción</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {usuarios.length > 0 ? (
-              usuarios.map((u) => (
-                <Row key={u.id}>
-                  <Td>{u.nombre}</Td>
-                  <Td>{u.email}</Td>
-                  <Td>{u.rol}</Td>
-                  <Td>
+        <TableWrap>
+          <Table>
+            <thead>
+              <tr>
+                <Th>Nombre</Th>
+                <Th>Email</Th>
+                <Th>Rol</Th>
+                <Th>Fecha</Th>
+                <Th>Acción</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {usuarios.length > 0 ? (
+                usuarios.map((u) => (
+                  <Row key={u.id}>
+                    <Td>{u.nombre}</Td>
+                    <Td>{u.email}</Td>
+                    <Td>{u.rol}</Td>
+                    <Td>
+                      {new Date(u.creado_en).toLocaleDateString("es-DO", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </Td>
+                    <Td>
+                      <DeleteButton
+                        onClick={() => handleEliminar(u.id, u.nombre)}
+                        title="Eliminar usuario"
+                      >
+                        <Trash2 size={18} />
+                      </DeleteButton>
+                    </Td>
+                  </Row>
+                ))
+              ) : (
+                <tr>
+                  <Td colSpan="5" style={{ textAlign: "center", color: "#888" }}>
+                    No hay usuarios registrados
+                  </Td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </TableWrap>
+
+        <MobileList>
+          {usuarios.length > 0 ? (
+            usuarios.map((u) => (
+              <MobileCard key={u.id}>
+                <MobileRow>
+                  <span>Nombre</span>
+                  <strong>{u.nombre}</strong>
+                </MobileRow>
+                <MobileRow>
+                  <span>Email</span>
+                  <strong>{u.email}</strong>
+                </MobileRow>
+                <MobileRow>
+                  <span>Rol</span>
+                  <strong>{u.rol}</strong>
+                </MobileRow>
+                <MobileRow>
+                  <span>Fecha</span>
+                  <strong>
                     {new Date(u.creado_en).toLocaleDateString("es-DO", {
                       year: "numeric",
                       month: "short",
                       day: "numeric",
                     })}
-                  </Td>
-                  <Td>
-                    <DeleteButton
-                      onClick={() => handleEliminar(u.id, u.nombre)}
-                      title="Eliminar usuario"
-                    >
-                      <Trash2 size={18} />
-                    </DeleteButton>
-                  </Td>
-                </Row>
-              ))
-            ) : (
-              <tr>
-                <Td colSpan="5" style={{ textAlign: "center", color: "#888" }}>
-                  No hay usuarios registrados
-                </Td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
+                  </strong>
+                </MobileRow>
+                <DeleteButton
+                  onClick={() => handleEliminar(u.id, u.nombre)}
+                  title="Eliminar usuario"
+                >
+                  <Trash2 size={18} />
+                </DeleteButton>
+              </MobileCard>
+            ))
+          ) : (
+            <p style={{ textAlign: "center", color: "#888" }}>
+              No hay usuarios registrados
+            </p>
+          )}
+        </MobileList>
       </TableSection>
     </Container>
   );
