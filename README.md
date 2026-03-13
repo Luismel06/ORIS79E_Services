@@ -17,7 +17,7 @@ Aplicación web para la gestión de servicios técnicos, tickets y cotizaciones 
 - Zustand
 - Styled Components + Framer Motion
 - Recharts, FullCalendar, React Big Calendar
-- jsPDF, pdfmake, jspdf-autotable
+- jsPDF, pdfmake, jspdf-autotable.
 
 ## Requisitos
 - Node.js y npm
