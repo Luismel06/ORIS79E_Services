@@ -23,14 +23,14 @@ Aplicación web para la gestión de servicios técnicos, tickets y cotizaciones 
 - Node.js y npm
 
 ## Instalación
-1. `npm install`
-2. Crear `.env` con las variables necesarias.
-3. `npm run dev`
+1. npm install
+2. Crear .env con las variables necesarias.
+3. npm run dev
 
 ## Variables de entorno
-Crear un archivo `.env` en la raíz del proyecto:
+Crear un archivo .env en la raíz del proyecto:
 
-```dotenv
+dotenv
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
 VITE_GOOGLE_CLIENT_ID=...
@@ -43,17 +43,12 @@ VITE_EMPRESA_BANCO=...
 VITE_EMPRESA_TITULAR_CUENTA=...
 VITE_EMPRESA_CUENTA_BANCO=...
 VITE_EMPRESA_RPE=...
-```
+
 
 Notas:
-- Las variables sin prefijo `VITE_` no se exponen al cliente. Si usas claves sensibles como `SUPABASE_SERVICE_ROLE_KEY`, mantenlas solo en entornos de servidor o scripts internos.
+- Las variables sin prefijo VITE_ no se exponen al cliente. Si usas claves sensibles como SUPABASE_SERVICE_ROLE_KEY, mantenlas solo en entornos de servidor o scripts internos.
 - La URL de redirección de OAuth también debe configurarse en Supabase y en Google Cloud Console.
 
-## Scripts
-- `npm run dev` inicia el servidor de desarrollo de Vite.
-- `npm run build` genera el bundle de producción.
-- `npm run preview` levanta una vista previa del build.
-- `npm run lint` ejecuta ESLint.
 
 ## Rutas principales
 ```text
